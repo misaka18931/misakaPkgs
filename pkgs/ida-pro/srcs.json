@@ -1,0 +1,20 @@
+{
+    "x86_64-linux": {
+        "urls": [
+            "https://web.archive.org/web/20240810005117/https://out5.hex-rays.com/beta90_6ba923/idapro_90_x64linux.run"
+        ],
+        "hash": "sha256-CxKnmPDiq3xbenlesnUTavf86INW/d79f3d2xqpYg3I="
+    },
+    "x86_64-darwin": {
+        "urls": [
+            "https://web.archive.org/web/20240810005117/https://out5.hex-rays.com/beta90_6ba923/idapro_90_x64mac.app.zip"
+        ],
+        "hash": ""
+    },
+    "aarch64-darwin": {
+        "urls": [
+            "https://web.archive.org/web/20240810005117/https://out5.hex-rays.com/beta90_6ba923/idapro_90_armmac.app.zip"
+        ],
+        "hash": ""
+    }
+}
