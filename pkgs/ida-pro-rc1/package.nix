@@ -23,7 +23,6 @@
   stdenv,
   xorg,
   zlib,
-  pythonEnv ? python3,
 }:
 
 let
@@ -31,45 +30,19 @@ let
 in
 stdenv.mkDerivation rec {
   pname = "ida-pro";
-  version = "9.0.240807";
+  version = "9.0.240925";
 
-  # src = ./idapro_90_x64linux.run;
-  src = fetchurl {
-    inherit (srcs.${stdenv.system} or (throw "Unsupported system: ${stdenv.hostPlatform.system}"))
-      urls
-      hash
-      ;
-  };
-  patcher = ./patch.py;
-
-  icon = fetchurl {
-    urls = [
-      "https://hex-rays.com/products/ida/news/8_1/images/icon_teams.png"
-      "https://web.archive.org/web/20221105181231if_/https://hex-rays.com/products/ida/news/8_1/images/icon_teams.png"
-    ];
-    sha256 = "sha256-widkv2VGh+eOauUK/6Sz/e2auCNFAsc8n9z0fdrSnW0=";
-  };
-
-  desktopItem = makeDesktopItem {
-    name = "ida-pro";
-    # exec = ''env QT_QPA_PLATFORM="xcb;wayland" ida64'';
-    exec = ''ida64'';
-    icon = icon;
-    comment = meta.description;
-    desktopName = "IDA Pro";
-    genericName = "Interactive Disassembler";
-    categories = [ "Development" ];
-    startupWMClass = "IDA";
-  };
-
-  desktopItems = [ desktopItem ];
+  # https://auth.lol/ida
+  # magnet:?xt=urn:btih:920c1a578e815e9d0e4b843179306cdcb5e8e00d&dn=idapro90rc1
+  src = ./ida-pro_90_x64linux.run;
+  patcher = ./keygen2.py;
 
   nativeBuildInputs = [
     makeWrapper
     copyDesktopItems
     autoPatchelfHook
     libsForQt5.wrapQtAppsHook
-    pythonEnv
+    python3
   ];
 
   # We just get a runfile in $src, so no need to unpack it.
@@ -92,7 +65,6 @@ stdenv.mkDerivation rec {
     libunwind
     libxkbcommon
     openssl
-    pythonEnv
     stdenv.cc.cc
     xorg.libICE
     xorg.libSM
@@ -114,50 +86,52 @@ stdenv.mkDerivation rec {
 
   installPhase = ''
     runHook preInstall
-    mkdir -p $out/bin $out/lib $out/opt
+    mkdir -p $out/bin $out/lib $out/opt $out/share
 
     # IDA depends on quite some things extracted by the runfile, so first extract everything
     # into $out/opt, then remove the unnecessary files and directories.
     IDADIR=$out/opt
+
+    # where IDA will save its .desktop entries
+    HOME=$out/share
+    mkdir -p $out/share/Desktop
 
     # Invoke the installer with the dynamic loader directly, avoiding the need
     # to copy it to fix permissions and patch the executable.
     $(cat $NIX_CC/nix-support/dynamic-linker) $src \
       --mode unattended --prefix $IDADIR
 
-    # Copy the exported libraries to the output.
-    # cp $IDADIR/libida64.so $out/lib
-    # python $patcher $IDADIR/libida64.so $out/lib/libida64.so
-    RES_DIR=$PWD
-    cd $IDADIR
+    # move desktop entries to where they belongs
+    mv $out/share/Desktop $out/share/applications
+
+    # patch libida.so
+    pushd $IDADIR
     python $patcher
     mv libida.so.patched libida.so
-    mv libida64.so.patched libida64.so
-    cd $RES_DIR
-    cp $IDADIR/libida64.so $out/lib
+    mv libida32.so.patched libida32.so
+    popd
 
+    # move IDA remote debug servers
     mv $IDADIR/dbgsrv $out/share
 
     # Some libraries come with the installer.
     addAutoPatchelfSearchPath $IDADIR
 
-    for bb in ida64 assistant; do
+    # wrap executables
+    for bb in ida assistant hvui; do
       wrapProgram $IDADIR/$bb \
-        --prefix QT_PLUGIN_PATH : $IDADIR/plugins/platforms \
-        --prefix NIX_PYTHONPREFIX : ${pythonEnv} \
-        --prefix NIX_PYTHONEXECUTABLE : ${pythonEnv}/bin/${pythonEnv.executable} \
-        --prefix NIX_PYTHONPATH : ${pythonEnv}/${pythonEnv.sitePackages} \
-        --prefix 'PYTHONNOUSERSITE' : 'true'
+        --prefix QT_PLUGIN_PATH : $IDADIR/plugins/platforms
+    done
+
+    # expose executables
+    for bb in ida assistant idat hvui; do
       ln -s $IDADIR/$bb $out/bin/$bb
     done
 
     # runtimeDependencies don't get added to non-executables, and openssl is needed
     #  for cloud decompilation
-    patchelf --add-needed libcrypto.so $IDADIR/libida64.so
-
-    # enable python env
-    patchelf --add-needed libpython3.so $IDADIR/plugins/idapython3_64.so
-
+    patchelf --add-needed libcrypto.so $IDADIR/libida.so
+    patchelf --add-needed libcrypto.so $IDADIR/libida32.so
 
     runHook postInstall
   '';
@@ -166,7 +140,8 @@ stdenv.mkDerivation rec {
     description = "The world's smartest and most feature-full disassembler";
     homepage = "https://hex-rays.com/ida-pro/";
     changelog = "https://hex-rays.com/products/ida/news/";
-    license = licenses.unfree;
+    # TODO: fix build issues with unfree license
+    # license = licenses.unfree;
     mainProgram = "ida64";
     maintainers = [ "misaka18931" ];
     platforms = [ "x86_64-linux" ]; # Right now, the installation script only supports Linux.
