@@ -8,6 +8,17 @@
 
   outputs =
     inputs@{ self, flake-parts, ... }:
+    let
+      evalPackages =
+        pkgsRef:
+        builtins.mapAttrs (
+          f: f_type:
+          if f_type != "directory" || (builtins.readDir ./pkgs/${f}) ? "package.nix" == "regular" then
+            throw "pkgs/${f} is not a valid package!"
+          else
+            pkgsRef.callPackage (./pkgs/${f}/package.nix) { }
+        ) (builtins.readDir ./pkgs);
+    in
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [
         # To import a flake module
@@ -31,8 +42,6 @@
           system,
           ...
         }:
-        let
-        in
         {
           # Per-system attributes can be defined here. The self' and inputs'
           # module parameters provide easy access to attributes of the same
@@ -40,15 +49,10 @@
           formatter = pkgs.nixfmt-rfc-style;
 
           # Equivalent to  inputs'.nixpkgs.legacyPackages.hello;
-          packages = builtins.mapAttrs (
-            f: f_type:
-            if f_type != "directory" || (builtins.readDir ./pkgs/${f}) ? "package.nix" == "regular" then
-              throw "pkgs/${f} is not a valid package!"
-            else
-              pkgs.callPackage (./pkgs/${f}/package.nix) { }
-          ) (builtins.readDir ./pkgs);
+          packages = evalPackages pkgs;
         };
       flake = {
+        overlay = final: evalPackages;
         # The usual flake attributes can be defined here, including system-
         # agnostic ones like nixosModule and system-enumerating ones, although
         # those are more easily expressed in perSystem.
