@@ -3,7 +3,7 @@
   cairo,
   copyDesktopItems,
   dbus,
-  fetchurl,
+  requireFile,
   fontconfig,
   freetype,
   glib,
@@ -16,7 +16,6 @@
   libsForQt5,
   libunwind,
   libxkbcommon,
-  makeDesktopItem,
   makeWrapper,
   openssl,
   python3,
@@ -33,8 +32,12 @@ stdenv.mkDerivation rec {
   version = "9.0.240925";
 
   # https://auth.lol/ida
-  # magnet:?xt=urn:btih:920c1a578e815e9d0e4b843179306cdcb5e8e00d&dn=idapro90rc1
-  src = ./ida-pro_90_x64linux.run;
+  src = requireFile {
+    name = "ida-pro_90_x64linux.run";
+    url = "magnet:?xt=urn:btih:920c1a578e815e9d0e4b843179306cdcb5e8e00d&dn=idapro90rc1";
+    hash = "sha256-FZz4mDoOexmdbvq1r0Lsoxoojn7y7ETrpjNt5Ky4EHo=";
+  };
+
   patcher = ./keygen2.py;
 
   nativeBuildInputs = [
@@ -140,8 +143,7 @@ stdenv.mkDerivation rec {
     description = "The world's smartest and most feature-full disassembler";
     homepage = "https://hex-rays.com/ida-pro/";
     changelog = "https://hex-rays.com/products/ida/news/";
-    # TODO: fix build issues with unfree license
-    # license = licenses.unfree;
+    license = licenses.unfree;
     mainProgram = "ida64";
     maintainers = [ "misaka18931" ];
     platforms = [ "x86_64-linux" ]; # Right now, the installation script only supports Linux.

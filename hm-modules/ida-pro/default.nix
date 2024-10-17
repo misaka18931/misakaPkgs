@@ -14,7 +14,7 @@ in
     enable = lib.mkEnableOption "enable the Interactive Disassembler";
     package = lib.mkOption {
       type = lib.types.package;
-      default = self.packages.${system}.ida-pro-rc1;
+      default = pkgs.ida-pro-rc1;
     };
     pythonEnv = lib.mkOption {
       type = lib.types.package;
