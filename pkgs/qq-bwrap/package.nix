@@ -32,7 +32,7 @@ runCommand "qq-bwrap"
               QQ_DOWNLOAD_DIR="''${XDG_DOWNLOAD_DIR:-$HOME/Downloads}"
           fi
 
-          ${lib.getExe bubblewrap} --new-session --cap-drop ALL --unshare-user-try --unshare-pid --unshare-cgroup-try \
+          exec ${lib.getExe bubblewrap} --new-session --cap-drop ALL --unshare-user-try --unshare-pid --unshare-cgroup-try \
               --ro-bind ${qq}/bin /bin \
               --ro-bind /nix/store /nix/store \
               --ro-bind /usr /usr \
