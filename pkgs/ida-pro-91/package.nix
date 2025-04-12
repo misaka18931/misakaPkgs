@@ -29,16 +29,16 @@ let
 in
 stdenv.mkDerivation rec {
   pname = "ida-pro";
-  version = "9.0.240925";
+  version = "9.1.0.250226";
 
   # https://auth.lol/ida
   src = requireFile {
-    name = "ida-pro_90_x64linux.run";
+    name = "ida-pro_91_x64linux.run";
     url = "magnet:?xt=urn:btih:920c1a578e815e9d0e4b843179306cdcb5e8e00d&dn=idapro90rc1";
-    hash = "sha256-y2xfxpeAg+4N56H2SmkoOTTeTnPANknDZLteQxG23fc=";
+    hash = "sha256-j/CAIr46DvaTqePqAQENE1aybP3Lvn/daNAbPJcA+eI=";
   };
 
-  patcher = ./keygen2.py;
+  patcher = ./keygen3.py;
 
   nativeBuildInputs = [
     makeWrapper
@@ -108,12 +108,12 @@ stdenv.mkDerivation rec {
     mv $out/share/.local/share/applications $out/share/applications
     rm -r $out/share/.local
 
-    # patch libida.so
-    # pushd $IDADIR
-    # python $patcher
-    # mv libida.so.patched libida.so
-    # mv libida32.so.patched libida32.so
-    # popd
+    patch libida.so
+    pushd $IDADIR
+    python $patcher
+    mv libida.so.patched libida.so
+    mv libida32.so.patched libida32.so
+    popd
 
     # move IDA remote debug servers
     mv $IDADIR/dbgsrv $out/share
