@@ -35,7 +35,6 @@ runCommand "qq-bwrap"
           exec ${lib.getExe bubblewrap} --new-session --cap-drop ALL --unshare-user-try --unshare-pid --unshare-cgroup-try \
               --ro-bind ${qq}/bin /bin \
               --ro-bind /nix/store /nix/store \
-              --ro-bind /usr /usr \
               --ro-bind ${qq}/opt /opt \
               --ro-bind /etc/machine-id /etc/machine-id \
               --dev-bind /dev /dev \
@@ -70,7 +69,7 @@ runCommand "qq-bwrap"
         chmod +x $out/bin/qq
         rm $out/share
         mkdir $out/share
-        ln -s ${qq}/share/* $out/share
+        ln -s ${qq}/share/* $out/shareQQNTim
         rm $out/share/applications
         mkdir $out/share/applications
         substitute ${qq}/share/applications/qq.desktop $out/share/applications/qq.desktop \
