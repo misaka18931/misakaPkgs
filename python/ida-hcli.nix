@@ -1,0 +1,71 @@
+{
+  lib,
+  buildPythonPackage,
+  fetchFromGitHub,
+  setuptools,
+  wheel,
+  click,
+  rich,
+  rich-click,
+  httpx,
+  supabase,
+  pydantic,
+  platformdirs,
+  packaging,
+  questionary,
+  semantic-version,
+  requests,
+  idapro,
+  gotrue,
+  pip,
+  tomli,
+  pyyaml,
+  tenacity,
+}:
+
+buildPythonPackage rec {
+  pname = "ida-hcli";
+  version = "0.15.3";
+
+  src = fetchFromGitHub {
+    owner = "HexRaysSA";
+    repo = "ida-hcli";
+    rev = "v${version}";
+    hash = "sha256-lhdvV86ymWDBN1zrcymPCfopv7dN5gW9wrDg78K2F/w=";
+  };
+
+  pyproject = true;
+
+  build-system = [
+    setuptools
+    wheel
+  ];
+
+  propagatedBuildInputs = [
+    click
+    rich
+    rich-click
+    httpx
+    supabase
+    pydantic
+    platformdirs
+    packaging
+    questionary
+    semantic-version
+    requests
+    idapro
+    gotrue
+    pip
+    tomli
+    pyyaml
+    tenacity
+  ];
+
+  pythonRelaxDeps = [ "pip" ];
+
+  meta = with lib; {
+    description = "HCLI - Hex-Rays CLI Utility";
+    homepage = "https://github.com/HexRaysSA/ida-hcli";
+    license = licenses.mit;
+  };
+}
