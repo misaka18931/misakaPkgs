@@ -1,0 +1,36 @@
+name: Generate plugin repository listing for BinaryNinja
+
+on:
+  workflow_call:
+    inputs:
+      listing_url:
+        required: true
+        type: string
+      name:
+        required: true
+        type: string
+
+jobs:
+  execute:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/determinate-nix-action@main
+
+      - name: Run Package Update scripts
+        run: |
+          cd packages/binaryninja/pkgs
+          chmod +x generate-repo.sh
+          ./generate-repo.sh ${{ inputs.listing_url }} ${{ inputs.name }}.json
+
+      - name: Commit changes
+        run: |
+          cd packages/binaryninja/pkgs
+          git pull
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add ${{ inputs.name }}.json
+          git commit -m "chore: update BinaryNinja plugin repo ${{ inputs.name }}" || echo "No changes to commit"
+          git push
