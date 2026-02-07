@@ -3,10 +3,12 @@
 
   inputs = {
     flake-utils.url = "github:numtide/flake-utils";
+    pyproject-nix.url = "github:pyproject-nix/pyproject.nix";
+    pyproject-nix.inputs.nixpkgs.follows = "nixpkgs";
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
+  outputs = { self, nixpkgs, flake-utils, ... }@inputs:
     (flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
@@ -14,13 +16,16 @@
       {
         formatter = pkgs.nixfmt-tree;
         python3Packages = import ./pythonPackages pkgs.python3.pkgs;
-
+        packages = {
+          binaryninja = pkgs.callPackage ./packages/binaryninja { inherit inputs pkgs; };
+        };
       }
     )) // {
-      overlays.python = final: prev: {
+      overlays.default = final: prev: {
         pythonPackagesExtensions = prev.pythonPackagesExtensions ++ [
           (pyfinal: pyprev: (import ./pythonPackages pyfinal))
         ];
+        binaryninja = final.callPackage ./packages/binaryninja { inherit inputs; pkgs = final; };
       };
     };
 }
