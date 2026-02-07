@@ -1,0 +1,24 @@
+name: BinaryNinja Plugins
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  generate-official-plugins:
+    permissions:
+      contents: write
+    uses: ./.github/workflows/bn-plugins.yml
+    with:
+      listing_url: "https://github.com/Vector35/official-plugins/raw/refs/heads/master/plugins.json"
+      name: "official-plugins"
+  generate-community-plugins:
+    permissions:
+      contents: write
+    uses: ./.github/workflows/bn-plugins.yml
+    with:
+      listing_url: "https://github.com/Vector35/community-plugins/raw/refs/heads/master/plugins.json"
+      name: "community-plugins"
+
+
