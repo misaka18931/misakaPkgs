@@ -22,7 +22,9 @@
       in
       {
         formatter = pkgs.nixfmt-tree;
-        python3Packages = import ./pythonPackages pkgs.python3.pkgs;
+        python3Packages = pkgs.python3.pkgs.overrideScope (
+          self: prev: import ./pythonPackages self.callPackage
+        );
         packages = {
           binaryninja = pkgs.callPackage ./packages/binaryninja { inherit inputs pkgs; };
         };
@@ -31,7 +33,7 @@
     // {
       overlays.default = final: prev: {
         pythonPackagesExtensions = prev.pythonPackagesExtensions ++ [
-          (pyfinal: pyprev: (import ./pythonPackages pyfinal))
+          (pyfinal: pyprev: (import ./pythonPackages pyfinal.callPackage))
         ];
         binaryninja = final.callPackage ./packages/binaryninja {
           inherit inputs;

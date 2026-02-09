@@ -1,13 +1,9 @@
-pythonPackages:
-let
-  callPackage = pythonPackages.callPackage;
-in
-rec {
+callPackage: {
   ida-netnode = callPackage ./ida-netnode.nix { };
-  ida-hcli = callPackage ./ida-hcli.nix { inherit idapro; };
-  ida-settings = callPackage ./ida-settings.nix { inherit ida-hcli; };
+  ida-hcli = callPackage ./ida-hcli.nix { };
+  ida-settings = callPackage ./ida-settings.nix { };
   idapro = callPackage ./idapro.nix { };
-  flare-capa = callPackage ./flare-capa.nix { inherit ida-settings ida-netnode; };
+  flare-capa = callPackage ./flare-capa.nix { };
   pylingual = callPackage ./pylingual.nix { };
   rust-demangler = callPackage ./rust-demangler.nix { };
   qiling = callPackage ./qiling.nix { };
