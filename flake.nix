@@ -8,8 +8,15 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
   };
 
-  outputs = { self, nixpkgs, flake-utils, ... }@inputs:
-    (flake-utils.lib.eachDefaultSystem (system:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      flake-utils,
+      ...
+    }@inputs:
+    (flake-utils.lib.eachDefaultSystem (
+      system:
       let
         pkgs = import nixpkgs { inherit system; };
       in
@@ -20,12 +27,17 @@
           binaryninja = pkgs.callPackage ./packages/binaryninja { inherit inputs pkgs; };
         };
       }
-    )) // {
+    ))
+    // {
       overlays.default = final: prev: {
         pythonPackagesExtensions = prev.pythonPackagesExtensions ++ [
           (pyfinal: pyprev: (import ./pythonPackages pyfinal))
         ];
-        binaryninja = final.callPackage ./packages/binaryninja { inherit inputs; pkgs = final; };
+        binaryninja = final.callPackage ./packages/binaryninja {
+          inherit inputs;
+          pkgs = final;
+        };
       };
+      homeManagerModules.binaryninja = import ./modules/home-manager/binaryninja.nix;
     };
 }
