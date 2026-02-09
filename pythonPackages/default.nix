@@ -12,4 +12,5 @@ rec {
   rust-demangler = callPackage ./rust-demangler.nix { };
   qiling = callPackage ./qiling.nix { };
   libdebug = callPackage ./libdebug.nix { };
+  pysqlite3 = callPackage ./pysqlite3.nix { };
 }
