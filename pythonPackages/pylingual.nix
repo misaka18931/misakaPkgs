@@ -1,12 +1,14 @@
 {
   lib,
   buildPythonPackage,
+  evaluate,
   fetchFromGitHub,
   setuptools,
-  poetry-core,
   asttokens,
   datasets,
+  tensorboardx,
   huggingface-hub,
+  hatchling,
   matplotlib,
   networkx,
   numpy,
@@ -36,12 +38,14 @@ buildPythonPackage rec {
   pyproject = true;
 
   build-system = [
-    poetry-core
+    hatchling
   ];
 
   propagatedBuildInputs = [
     asttokens
     datasets
+    evaluate
+    tensorboardx
     huggingface-hub
     matplotlib
     networkx
