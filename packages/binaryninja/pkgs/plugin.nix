@@ -52,6 +52,7 @@ ps.toPythonModule (
     pname = "binaryninja-plugin-${name}";
     propagatedBuildInputs = extractPythonDeps dependencies;
     passthru.binaryninjaPakcage = true;
+    dontBuild = true;
     installPhase = ''
       local dest=$out/${bn.plugins}/${pname}
       mkdir -p $out
