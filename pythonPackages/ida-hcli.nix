@@ -68,6 +68,5 @@ buildPythonPackage rec {
     homepage = "https://hcli.docs.hex-rays.com/";
     license = licenses.mit;
     platforms = platforms.linux;
-    maintainers = [ "misaka18931" ];
   };
 }

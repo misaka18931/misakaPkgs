@@ -25,12 +25,12 @@
 
 buildPythonPackage rec {
   pname = "pylingual";
-  version = "0.1.0-unstable-20260108";
+  version = "0-unstable-2026-01-16";
   src = fetchFromGitHub {
     owner = "syssec-utd";
     repo = pname;
-    rev = "99c74eeff5262c0200a3d378298af1f736e20b01";
-    hash = "sha256-+DSMw4N3Fx53dwCDlzXwSjlmfSCXcK0w0FQk17Xsqmk=";
+    rev = "fb400cd0e419f919754d1c799a11e50ca6c67706";
+    hash = "sha256-knvpcqYiqTZkgjaTyqaqzbLj4wbAwnupqlztCiYJ2ZQ=";
   };
 
   pyproject = true;
@@ -58,7 +58,9 @@ buildPythonPackage rec {
     xdis
     click
   ];
+
   pythonRelaxDeps = [ "transformers" ];
+
   meta = with lib; {
     description = "Python decompiler for modern Python versions.";
     homepage = "https://pylingual.io";

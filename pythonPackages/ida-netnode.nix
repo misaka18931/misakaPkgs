@@ -27,7 +27,6 @@ buildPythonPackage rec {
     description = "Humane API for storing and accessing persistent data in IDA Pro databases";
     homepage = "https://github.com/williballenthin/ida-netnode";
     license = licenses.mit;
-    maintainers = [ "misaka18931" ];
     platforms = platforms.linux;
   };
 }

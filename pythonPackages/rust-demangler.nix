@@ -22,7 +22,6 @@ buildPythonPackage rec {
     description = "A package for demangling Rust symbols, written in Python.";
     license = licenses.mit;
     homepage = "https://github.com/teambi0s/rust_demangler";
-    maintainers = [ "misaka18931" ];
     platforms = platforms.linux;
   };
 }

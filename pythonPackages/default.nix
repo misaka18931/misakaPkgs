@@ -9,4 +9,5 @@ callPackage: {
   qiling = callPackage ./qiling.nix { };
   libdebug = callPackage ./libdebug.nix { };
   pysqlite3 = callPackage ./pysqlite3.nix { };
+  xdis-git = callPackage ./xdis-git.nix { };
 }

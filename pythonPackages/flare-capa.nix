@@ -65,7 +65,6 @@ buildPythonPackage rec {
     description = "The FLARE team's open-source tool to identify capabilities in executable files.";
     homepage = "https://mandiant.github.io/capa/";
     license = licenses.asl20;
-    maintainers = [ "misaka18931" ];
     platforms = platforms.linux;
   };
 }

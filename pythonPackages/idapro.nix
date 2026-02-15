@@ -27,6 +27,5 @@ buildPythonPackage rec {
     description = "IDA Library Python Module";
     license = licenses.mit;
     platforms = platforms.linux;
-    maintainers = [ "misaka18931" ];
   };
 }

@@ -35,7 +35,6 @@ buildPythonPackage rec {
     description = "Fetch and set configuration values for IDA Plugins";
     homepage = "https://github.com/williballenthin/ida-settings";
     license = licenses.mit;
-    maintainers = [ "misaka18931" ];
     platforms = platforms.linux;
   };
 }

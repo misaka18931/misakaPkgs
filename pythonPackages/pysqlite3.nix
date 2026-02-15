@@ -33,6 +33,5 @@ buildPythonPackage rec {
     description = "SQLite3 DB-API 2.0 driver from Python 3, packaged separately, with improvements ";
     homepage = "https://github.com/coleifer/pysqlite3";
     license = licenses.zlib;
-    maintainers = [ "misaka18931" ];
   };
 }

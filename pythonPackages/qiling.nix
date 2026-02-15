@@ -38,7 +38,6 @@ buildPythonPackage rec {
   };
   postPatch = ''
     substituteInPlace pyproject.toml \
-      --replace-fail 'capstone = "^4"' 'capstone = ">=4"' \
       --replace-fail 'unicorn = "2.1.3"' 'unicorn = ">=2.1.3"'
   '';
 

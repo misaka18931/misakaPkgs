@@ -66,6 +66,5 @@ buildPythonPackage rec {
     homepage = "https://libdebug.org/";
     license = licenses.mit;
     platforms = platforms.linux;
-    maintainers = [ "misaka18931" ];
   };
 }
