@@ -21,7 +21,7 @@
   rich,
   seqeval,
   transformers,
-  xdis,
+  xdis-git,
   click,
 }:
 
@@ -59,7 +59,7 @@ buildPythonPackage rec {
     rich
     seqeval
     transformers
-    xdis
+    xdis-git
     click
   ];
 
