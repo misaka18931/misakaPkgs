@@ -20,7 +20,7 @@
 
 buildPythonPackage rec {
   pname = "qiling";
-  version = "1.4.7";
+  version = "1.4.7-unstable-2025-11-05";
 
   pyproject = true;
 
@@ -33,8 +33,8 @@ buildPythonPackage rec {
   src = fetchFromGitHub {
     owner = "qilingframework";
     repo = "qiling";
-    rev = version;
-    hash = "sha256-B3p3Ve/mZvKZLbVlEjItS+O4tSYwJV7wSsj0gV/CZq8=";
+    rev = "fe462b8313aa46d84cac5a0f7b207382fb25a37b";
+    hash = "sha256-t/VF4juneqU5nibt6lqlOcIrZN8WZXUuOnqd6UzZYtI=";
   };
   postPatch = ''
     substituteInPlace pyproject.toml \
