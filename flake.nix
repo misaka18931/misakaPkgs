@@ -25,7 +25,7 @@
         packages = {
           binaryninja = pkgs.callPackage ./packages/binaryninja { inherit inputs pkgs; };
           python3Packages = pkgs.python3.pkgs.overrideScope (
-            self: prev: import ./pythonPackages self.callPackage
+            import ./pythonPackages pkgs
           );
         };
       }
@@ -33,7 +33,7 @@
     // {
       overlays.default = final: prev: {
         pythonPackagesExtensions = prev.pythonPackagesExtensions ++ [
-          (pyfinal: pyprev: (import ./pythonPackages pyfinal.callPackage))
+          (import ./pythonPackages final)
         ];
         binaryninja = final.callPackage ./packages/binaryninja {
           inherit inputs;
