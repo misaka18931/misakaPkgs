@@ -22,11 +22,11 @@
       in
       {
         formatter = pkgs.nixfmt-tree;
-        python3Packages = pkgs.python3.pkgs.overrideScope (
-          self: prev: import ./pythonPackages self.callPackage
-        );
         packages = {
           binaryninja = pkgs.callPackage ./packages/binaryninja { inherit inputs pkgs; };
+          python3Packages = pkgs.python3.pkgs.overrideScope (
+            self: prev: import ./pythonPackages self.callPackage
+          );
         };
       }
     ))
