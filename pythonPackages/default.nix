@@ -1,4 +1,7 @@
-callPackage: {
+pkgs: pyfinal: pyprev:
+let
+  callPackage = pyfinal.callPackage;
+in {
   ida-netnode = callPackage ./ida-netnode.nix { };
   ida-hcli = callPackage ./ida-hcli.nix { };
   ida-settings = callPackage ./ida-settings.nix { };
@@ -9,5 +12,5 @@ callPackage: {
   qiling = callPackage ./qiling.nix { };
   libdebug = callPackage ./libdebug.nix { };
   pysqlite3 = callPackage ./pysqlite3.nix { };
-  xdis-git = callPackage ./xdis-git.nix { };
+  xdis-git = import ./xdis-git.nix pkgs pyprev.xdis;
 }
