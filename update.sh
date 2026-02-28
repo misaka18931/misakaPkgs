@@ -24,3 +24,25 @@ for path in pythonPackages/*; do
                        --override-filename=$path \
                        $version
          done
+#packages
+for path in packages/*; do
+            package=$(basename $path .nix)
+            [ "$package" = default ] && continue
+
+            case $package in
+                sing-boxr)
+                    version=branch
+                *)
+                    continue
+                    ;;
+            esac
+            if [ -n "$version" ]; then
+                version=--version=$version
+            fi
+            nix-update python3Packages.$package \
+                       --flake \
+                       --build \
+                       --commit \
+                       --override-filename=$path \
+                       $version
+         done

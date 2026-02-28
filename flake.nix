@@ -24,6 +24,7 @@
         formatter = pkgs.nixfmt-tree;
         packages = {
           binaryninja = pkgs.callPackage ./packages/binaryninja { inherit inputs pkgs; };
+          sing-boxr = import ./packages/sing-boxr.nix pkgs;
           python3Packages = pkgs.python3.pkgs.overrideScope (
             import ./pythonPackages pkgs
           );
@@ -39,6 +40,7 @@
           inherit inputs;
           pkgs = final;
         };
+        sing-boxr = import ./packages/sing-boxr.nix final;
       };
       homeManagerModules.binaryninja = import ./modules/home-manager/binaryninja.nix;
     };
