@@ -1,5 +1,5 @@
 pkgs: pkgs.sing-box.overrideAttrs (prev: {
-  version = "";
+  version = "1.13.0-unstable-2026-02-28";
   src = pkgs.fetchFromGitHub {
     owner = "reF1nd";
     repo = "sing-box";
