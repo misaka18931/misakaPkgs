@@ -151,7 +151,6 @@ stdenv.mkDerivation (finalAttrs: rec {
       free = false;
     };
     mainProgram = "binaryninja";
-    maintainers = "misaka18931";
     platforms = [ "x86_64-linux" ];
   };
 })

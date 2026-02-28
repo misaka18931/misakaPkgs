@@ -69,7 +69,6 @@ buildPythonPackage rec {
     description = "Python decompiler for modern Python versions.";
     homepage = "https://pylingual.io";
     license = licenses.mit;
-    maintainers = [ "misaka18931" ];
     platforms = platforms.linux;
   };
 }
