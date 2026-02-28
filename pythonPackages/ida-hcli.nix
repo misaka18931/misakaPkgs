@@ -25,13 +25,13 @@
 
 buildPythonPackage rec {
   pname = "ida-hcli";
-  version = "0.15.13";
+  version = "0.16.4";
 
   src = fetchFromGitHub {
     owner = "HexRaysSA";
     repo = "ida-hcli";
     rev = "v${version}";
-    hash = "sha256-afNLxdY9GUxQwTvL/PeiZb9vojTR9Wh7SdL0JciZFbM=";
+    hash = "sha256-WL/TuvlWsd+Vwf0a/PhlblUcYPGF0ylfoowBa4igEdg=";
   };
 
   pyproject = true;
