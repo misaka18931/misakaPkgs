@@ -146,7 +146,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 243,
+      "stargazers_count": 244,
       "updated_at": "2025-07-01 15:21:37+00:00"
     },
     "projectUrl": "https://github.com/otter-sec/bn-ebpf-solana",
@@ -164,20 +164,20 @@
       "python3"
     ],
     "author": "xorhex",
-    "dependencies": "",
+    "dependencies": "unicorn\ncapstone\n",
     "description": "Various features to make windows malware analysis easier.",
     "installinstructions": {},
     "is_paid": false,
-    "lastUpdated": 1737133601,
+    "lastUpdated": 1775633306,
     "license": {
       "name": "MIT",
       "text": "Copyright 2024 xorhex\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
     },
-    "longdescription": "# binjaextras (v0.0.4)\n\nAuthor: **xorhex**\nCopyright: **2025**\n\n_Various features to make windows malware analysis easier._\n\n## Description:\n\nVarious features to make windows malware analysis easier like adding function prototypes.\n\n### Features:\n\n#### Apply Type\n\n1. Rename the variable to the API name\n2. Right click on the variable and select `BinjaExtras` and click `Apply Type`\n\n![](bn_type_application.gif)\n\n#### Apply Type to Function\n\nSometimes a custom function will resolve an API and then jump to it. The function prototype of the function that contains this code that both resolves and calls/jumps to the API function matches the corrisponding API function prototype being resolved - simply rename the function and the type is auto applied.\n\n### Settings\n\nAll of the features can be controlled (enabled/disabled) via the settings.\n\n![](BinjaExtraSettings.png)\n\n\n## Installation Instructions\n\n### Darwin\n\nNothing special, just install through the Binary Ninja plugin manager.\n\n### Windows\n\nNothing special, just install through the Binary Ninja plugin manager.\n\n### Linux\n\nNothing special, just install through the Binary Ninja plugin manager.\n\n## Change Log\n\n### Version v0.0.4\n\n- move the Usage content into the readme so that it will render in BinaryNinja's plugin manager\n\n## Minimum Version\n\nThis plugin requires the following minimum version of Binary Ninja:\n\n* 6455\n\n\n## License\n\nThis plugin is released under a MIT license.\n## Metadata Version\n\n2\n",
+    "longdescription": "Various features to make windows malware analysis easier like adding function prototypes and local HashDB.\n\n### Changelog\n## Version v0.1.0\r\n\r\n- Can now apply types to global variables\r\n- Can now apply types to struct members (has to be done from binaryview)\r\n- Local API HashDB utilizing OALabs HashDB (see [README.md](https://github.com/xorhex/binjaextras/blob/main/README.md) for setup instructions)\r\n",
     "minimumbinaryninjaversion": 6455,
     "name": "binjaextras",
-    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/ca8a44b7-d388-4175-a0f3-a0814c0d1e9a/versions/f3d4d249-c782-4a5b-bd4a-61904541a94b/platforms/1220/download",
-    "packageUrl": "https://extensions.binary.ninja/v1/extensions/ca8a44b7-d388-4175-a0f3-a0814c0d1e9a/versions/f3d4d249-c782-4a5b-bd4a-61904541a94b/platforms/1220/download?notrack=1",
+    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/ca8a44b7-d388-4175-a0f3-a0814c0d1e9a/versions/07fe0f6b-271c-4282-999b-e6c09bfc90d7/platforms/3343/download",
+    "packageUrl": "https://extensions.binary.ninja/v1/extensions/ca8a44b7-d388-4175-a0f3-a0814c0d1e9a/versions/07fe0f6b-271c-4282-999b-e6c09bfc90d7/platforms/3343/download?notrack=1",
     "path": "xorhex_binjaextras",
     "platforms": [
       "Darwin",
@@ -187,16 +187,16 @@
     "pluginmetadataversion": 2,
     "projectData": {
       "stargazers_count": 8,
-      "updated_at": "2025-01-17 17:06:41+00:00"
+      "updated_at": "2026-04-08 07:28:26+00:00"
     },
     "projectUrl": "https://github.com/xorhex/binjaextras",
     "subdir": "",
     "type": [
       "helper"
     ],
-    "version": "v0.0.4",
+    "version": "v0.1.0",
     "view_only": false,
-    "sha256": "1b7hsy0d5rkixi4g3w537f04kxwmjnm1jgas7dz2i0r092spk0l7"
+    "sha256": "1yaxkdmbi7fim37xz5v41dhh2far5whg2004mrg8ql9gmg5545sq"
   },
   {
     "api": [
@@ -540,7 +540,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 496,
+      "stargazers_count": 497,
       "updated_at": "2025-01-16 22:23:23+00:00"
     },
     "projectUrl": "https://github.com/junron/auto-enum",
@@ -1059,7 +1059,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 67,
+      "stargazers_count": 68,
       "updated_at": "2025-02-25 20:50:47+00:00"
     },
     "projectUrl": "https://github.com/elbee-cyber/RopView",
@@ -1179,7 +1179,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 1061,
+      "stargazers_count": 1063,
       "updated_at": "2024-06-21 03:57:00+00:00"
     },
     "projectUrl": "https://github.com/mrphrazer/reverser_ai",
@@ -1945,20 +1945,20 @@
       "python3"
     ],
     "author": "BinSync Team",
-    "dependencies": "binsync>=5.13.0",
+    "dependencies": "binsync>=5.14.0\n",
     "description": "Adds support for cross-decompiler collab in the BinSync supported decompilers.",
     "installinstructions": {},
     "is_paid": false,
-    "lastUpdated": 1774376924,
+    "lastUpdated": 1775761898,
     "license": {
       "name": "BSD 2-clause",
       "text": ""
     },
-    "longdescription": "\n## BinSync\n\n<p align=\"center\">\n <img src=\"https://i.imgur.com/qdesKpg.png\" style=\"width: 10%;\" alt=\"BinSync Logo\"/>\n</p>\n\nBinSync is a decompiler collaboration tool built on the Git versioning system to enable fined-grained reverse\nengineering collaboration regardless of decompiler. \nBinSync is supported in IDA, Binary Ninja, Ghidra, and angr-management.\n\n![Demo](https://github.com/binsync/binsync/blob/main/assets/images/binja_sync.gif?raw=true)\n\n## Overview \nAt a high level, BinSync works by tracking changes to important reverse engineering artifacts \n(functions, comments, types) while you reverse engineer a binary. These changes are then committed to a Git repository.\nThe data is stored in TOMLS and is therefore human-readable and diffable. The data stored, such as types, are \nconverted to C so they can be transferred between decompilers. \nAn example repo of this format can be found at [https://github.com/binsync/example.bsproj](https://github.com/binsync/example.bsproj). \n\nBinSync provides a GUI for you to view changes made by you and other users and synchronize them.\nBinSync also has other extra features for integrating AI reverse engineering assistants.\n\n## Installation & Usage\nBinSync can be installed directly from within your decompiler's plugin manager. After that initial installation, you\ncan verify that your installation works by following our quickstart guide to join our example project.\nThe 5-minute quickstart guide can be found [here](https://docs.binsync.net/quickstart/joining-project), and is \nalways the most up-to-date way to get started with BinSync.\n\n## Credits\nBinSync is built by [mahaloz](https://github.com/mahaloz), the [angr](https://angr.io) team, and the [SEFCOM](https://sefcom.asu.edu) research lab. It's also due\nin large part to its use by the [Shellphish](https://shellphish.net) hacking team. The BinSync Team can be listed as follows:\n- Zion Leonahenahe Basque (mahaloz)\n- The angr team\n- The SEFCOM Lab at Arizona State University\n\nFor inquiries, contact the project lead, Zion Leonahenahe Basque, aka, \"mahaloz\" at binsync@mahaloz.re. \n\n### Changelog\n## What's Changed\n* feat/compare-commit-history by @JustinZYen in https://github.com/binsync/binsync/pull/508\n* Add diff display when hovering over function diffs in Compare with Commit History by @JustinZYen in https://github.com/binsync/binsync/pull/512\n\n\n**Full Changelog**: https://github.com/binsync/binsync/compare/v5.12.0...v5.13.0",
+    "longdescription": "## BinSync\r\n\r\n<p align=\"center\">\r\n <img src=\"https://i.imgur.com/qdesKpg.png\" style=\"width: 10%;\" alt=\"BinSync Logo\"/>\r\n</p>\r\n\r\nBinSync is a decompiler collaboration tool built on the Git versioning system to enable fined-grained reverse\r\nengineering collaboration regardless of decompiler. \r\nBinSync is supported in IDA, Binary Ninja, Ghidra, and angr-management.\r\n\r\n![Demo](https://github.com/binsync/binsync/blob/main/assets/images/binja_sync.gif?raw=true)\r\n\r\n## Overview \r\nAt a high level, BinSync works by tracking changes to important reverse engineering artifacts \r\n(functions, comments, types) while you reverse engineer a binary. These changes are then committed to a Git repository.\r\nThe data is stored in TOMLS and is therefore human-readable and diffable. The data stored, such as types, are \r\nconverted to C so they can be transferred between decompilers. \r\nAn example repo of this format can be found at [https://github.com/binsync/example.bsproj](https://github.com/binsync/example.bsproj). \r\n\r\nBinSync provides a GUI for you to view changes made by you and other users and synchronize them.\r\nBinSync also has other extra features for integrating AI reverse engineering assistants.\r\n\r\n## Installation & Usage\r\nBinSync can be installed directly from within your decompiler's plugin manager. After that initial installation, you\r\ncan verify that your installation works by following our quickstart guide to join our example project.\r\nThe 5-minute quickstart guide can be found [here](https://docs.binsync.net/quickstart/joining-project), and is \r\nalways the most up-to-date way to get started with BinSync.\r\n\r\n## Credits\r\nBinSync is built by [mahaloz](https://github.com/mahaloz), the [angr](https://angr.io) team, and the [SEFCOM](https://sefcom.asu.edu) research lab. It's also due\r\nin large part to its use by the [Shellphish](https://shellphish.net) hacking team. The BinSync Team can be listed as follows:\r\n- Zion Leonahenahe Basque (mahaloz)\r\n- The angr team\r\n- The SEFCOM Lab at Arizona State University\r\n\r\nFor inquiries, contact the project lead, Zion Leonahenahe Basque, aka, \"mahaloz\" at binsync@mahaloz.re.\n\n### Changelog\n## What's Changed\r\n* Auxiliary Server Enhancement to See Which Users are Working on a Function by @JustinZYen in https://github.com/binsync/binsync/pull/517\r\n* Add new decompilation cache to precise diff by @NishTheFish-dev in https://github.com/binsync/binsync/pull/511\r\n* Fix issue where error message about not being connected to auxiliary server was showing on server startup by @JustinZYen in https://github.com/binsync/binsync/pull/518\r\n\r\n\r\n**Full Changelog**: https://github.com/binsync/binsync/compare/v5.13.1...v5.14.0",
     "minimumbinaryninjaversion": 1200,
     "name": "BinSync",
-    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/6a391f63-499c-4bfb-b920-3c538d296ae0/versions/52db81d6-1056-4339-bb9c-6269f8c90bb9/platforms/3279/download",
-    "packageUrl": "https://extensions.binary.ninja/v1/extensions/6a391f63-499c-4bfb-b920-3c538d296ae0/versions/52db81d6-1056-4339-bb9c-6269f8c90bb9/platforms/3279/download?notrack=1",
+    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/6a391f63-499c-4bfb-b920-3c538d296ae0/versions/d2af8a71-0c70-49fe-947f-5d1e30889825/platforms/3349/download",
+    "packageUrl": "https://extensions.binary.ninja/v1/extensions/6a391f63-499c-4bfb-b920-3c538d296ae0/versions/d2af8a71-0c70-49fe-947f-5d1e30889825/platforms/3349/download?notrack=1",
     "path": "binsync_binsync",
     "platforms": [
       "Darwin",
@@ -1967,17 +1967,17 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 691,
-      "updated_at": "2026-03-24 18:28:44+00:00"
+      "stargazers_count": 695,
+      "updated_at": "2026-04-09 19:11:38+00:00"
     },
     "projectUrl": "https://github.com/binsync/binsync",
     "subdir": "binsync/stub_files",
     "type": [
       "sync"
     ],
-    "version": "5.13.0",
+    "version": "5.14.0",
     "view_only": false,
-    "sha256": "0qp7sgc3v5wiaqsrsza5cq0vkzxyzvbh15qxnywx2qwpjnrdzbhi"
+    "sha256": "1scf9f7675i5057d3cvp98ggwzhsa580fqanirqjgdzs513bk3qy"
   },
   {
     "api": [
@@ -2084,7 +2084,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 787,
+      "stargazers_count": 789,
       "updated_at": "2025-11-11 22:17:48+00:00"
     },
     "projectUrl": "https://github.com/mahaloz/decomp2dbg",
@@ -3155,7 +3155,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 2323,
+      "stargazers_count": 2324,
       "updated_at": "2022-01-21 23:58:37+00:00"
     },
     "projectUrl": "https://github.com/bootleg/ret-sync",
@@ -3352,7 +3352,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 2533,
+      "stargazers_count": 2535,
       "updated_at": "2024-02-05 18:12:17+00:00"
     },
     "projectUrl": "https://github.com/gaasedelen/lighthouse",
@@ -3782,7 +3782,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 653,
+      "stargazers_count": 651,
       "updated_at": "2025-03-14 02:16:09+00:00"
     },
     "projectUrl": "https://github.com/mrphrazer/obfuscation_detection",
@@ -4698,7 +4698,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 139,
+      "stargazers_count": 140,
       "updated_at": "2024-02-15 00:51:37+00:00"
     },
     "projectUrl": "https://github.com/zznop/bnida",
@@ -5929,7 +5929,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 350,
+      "stargazers_count": 351,
       "updated_at": "2024-02-24 15:43:49+00:00"
     },
     "projectUrl": "https://github.com/borzacchiello/seninja",
@@ -6482,7 +6482,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 5,
+      "stargazers_count": 6,
       "updated_at": "2025-10-08 01:24:17+00:00"
     },
     "projectUrl": "https://github.com/ScriptWare-Software/scylla-ninja",
@@ -6561,7 +6561,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 120,
+      "stargazers_count": 121,
       "updated_at": "2025-11-19 23:33:41+00:00"
     },
     "projectUrl": "https://github.com/CX330Blake/Shellcode-IDE",
@@ -6641,7 +6641,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 541,
+      "stargazers_count": 568,
       "updated_at": "2026-03-28 23:38:53+00:00"
     },
     "projectUrl": "https://github.com/buzzer-re/Rikugan/",
@@ -7038,7 +7038,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 26,
+      "stargazers_count": 27,
       "updated_at": "2025-10-20 06:27:29+00:00"
     },
     "projectUrl": "https://github.com/FFRI/binja-swift-analyzer",
@@ -7115,7 +7115,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 49,
+      "stargazers_count": 50,
       "updated_at": "2026-03-06 14:58:12+00:00"
     },
     "projectUrl": "https://github.com/seekbytes/ptxNinja",
@@ -7234,7 +7234,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 28,
+      "stargazers_count": 31,
       "updated_at": "2026-03-31 13:03:33+00:00"
     },
     "projectUrl": "https://github.com/jtang613/BinAssistMCP",
