@@ -1,5 +1,84 @@
 [
   {
+    "api": [],
+    "author": "Decoder Loop Technologies",
+    "dependencies": "",
+    "description": "Binary Ninja plugin to find metadata from Rust binaries",
+    "installinstructions": {},
+    "is_paid": false,
+    "lastUpdated": 1785653295,
+    "license": {
+      "name": "MIT",
+      "text": "Copyright (c) 2026 Decoder Loop Technologies\r\n\r\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\r\n\r\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\r\n\r\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
+    },
+    "longdescription": "# Rust Metadata Carver\n\nBinary Ninja plugin to find metadata from Rust binaries, including:\n\n- Source file locations from panic unwind metadata (i.e. `core::panic::Location` structs embedded in the binary) \n\n![A screenshot of several Rust \"core::panic::Location\" structs, all with the source file path \"library\\std\\src\\sys\\windows\\stdio.rs\" and each with a line number and column number.](images/panic-location-structs-screenshot-border.png)\n\n![A screenshot of the Tags interface in Binary Ninja, showing a large number of tags labelled with the source file path, source file line, and source file column of panic location metadata embedded inside a Rust binary. For example, one tag has the label \"library\\std\\src\\sys\\windows\\c.rs: line 1362, col 9\". All tags are using the 😱 emoji as an icon.](images/panic-path-tags-screenshot-border.png)\n\n## Usage\n\nThis plugin provides the following commands:\n\n1) _Plugins_ > _Rust Metadata Carver_ > _Find Panic Location Paths_\n2) _Plugins_ > _Rust Metadata Carver_ > _Recover Panic Location Metadata Structures_\n\nFirst run the _Find Panic Location Paths_ command, then the _Recover Panic Location Metadata Structures_ command.\n\n### _Plugins_ > _Rust Metadata Carver_ > _Find Panic Location Paths_\n\nThis command finds all Rust `&str` string slices in the binary that are also possible Rust source file paths.\n\nThe command will create a new `&str` type in the _Types_ pane.\n\n![alt text](images/str-type-cross-references-border.png)\n\n### _Plugins_ > _Rust Metadata Carver_ > _Recover Panic Location Metadata Structures_\n\n**Note: This will only work if you've run the _Find Panic Location Paths_ command first!**\n\nThis command recovers all `core::panic::Location` metadata structures from the binary. \n\nThis command also finds all cross-references, inside the code, to each `core::panic::Location` structure. It creates a new tag (labelled with the emoji 😱) at each code location that references a `core::panic::Location` structure.\n\n![A screenshot of a decompiled function in Binary Ninja, showing pseudo-C decompiler output with several function calls. A function call with the decompiled code `sub_47eed0(\"called `Option::unwrap()` on a `None` value\", 0x2b, &panic_location_str_\"src\\main.rs\")` has a 😱 emoji marked at its address. The hover-over text of another 😱 is shown, saying \"Tags at address 0x40a0d3: src\\main.rs - Rust Panic Location Source File Path: src\\main.rs: line 30, col 26\"](images/panic-location-references-and-tags-border.png)\n\nThe full list of all found `core::panic::Location` metadata structures can be found in Binary Ninja's _Tags_ pane. Each `core::panic::Location` that shares the same original Rust source file path is grouped together.\n\n![A screenshot of the Tags interface in Binary Ninja, showing a large number of tags labelled with the source file path, source file line, and source file column of panic location metadata embedded inside a Rust binary. All tags are using the 😱 emoji as an icon. The line `src\\main.rs: line 120, col 40` is highlighted.](images/panic-path-tags-screenshot-2-border.png)\n\n## Minimum Version\n\n4689\n\n## License\n\nThis plugin is released under an [MIT license](./LICENSE).\n\n## Metadata Version\n\n2\n\n## Development\n\n### Setting up a development environment\n\nTo set up a development environment, including setting up a Python virtual environment:\n\n```\npython -m venv .venv && . .venv/bin/activate\npython $PATH_TO_BINARY_NINJA_INSTALLATION/scripts/install_api.py\n```\n\n### Testing local versions of the plugin\n\nTo test the plugin locally in your own Binary Ninja installation during development, create a symbolic link between your development folder, and the [Binary Ninja user plugins folder](https://docs.binary.ninja/guide/index.html#user-folder), so that your development folder is loaded by Binary Ninja on startup as a plugin.\n\n- MacOS:\n\n ```sh\n ln -s `pwd` ~/Library/Application\\ Support/Binary\\ Ninja/plugins/rust_metadata_carver\n ```\n\n- Linux:\n\n ```sh\n ln -s --relative . ~/.binaryninja/plugins/rust_metadata_carver\n ```\n\n- Windows (Powershell):\n ```powershell\n New-Item -ItemType Junction -Value $(Get-Location) -Path \"$env:APPDATA\\Binary Ninja\\plugins\\rust_metadata_carver\"\n ```\n\nYou should then change the values of the following Python settings in Binary Ninja to point to inside your development folder's virtual environment:\n\n- `python.binaryOverride`: Set this to the path of the Python interpreter inside your development virtual environment, e.g. `$DEVELOPMENT_FOLDER/rust_metadata_carver/.venv/bin/python/`\n- `python.virtualenv`: Set this to the path of the `site-packages` directory inside your development virtual environment, e.g. `$DEVELOPMENT_FOLDER/rust_metadata_carver/.venv/lib/python3.11/site-packages`\n\n\n### Changelog\n## 1.0.0 (2026-08-02)\n\n\n### Features\n\n* Add logic to create string slices ([e21a6aa](https://github.com/decoderloop/rust_metadata_carver/commit/e21a6aacc3dafc50a3aa2e1155faa971baaccbe5))\n* Deal with renaming of RustStringSlice to &str ([07c9035](https://github.com/decoderloop/rust_metadata_carver/commit/07c9035be0ce8bd4ab7931c3d82a952f8d152992))\n* Define core::panic::Location type ([173fc4b](https://github.com/decoderloop/rust_metadata_carver/commit/173fc4bcd1ecd76f4b92193d4ad9624113444c67))\n* Improve logging text for panic location tags ([7d58243](https://github.com/decoderloop/rust_metadata_carver/commit/7d582435044576e32b5e0b78f404a37ab76476bb))\n* Put all actions into a single undo block ([6da16a8](https://github.com/decoderloop/rust_metadata_carver/commit/6da16a8510ff73bee4f199736db60d35a62b35ab))\n\n\n### Bug Fixes\n\n* Deal with cases where DataVariable.value is already a string ([9f8f4eb](https://github.com/decoderloop/rust_metadata_carver/commit/9f8f4eb166a3156be80afc3adc28dfc382700054))",
+    "minimumbinaryninjaversion": 4689,
+    "name": "Rust Metadata Carver",
+    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/bc38a529-a346-403c-a632-123a76c9fa48/versions/7d70d0ea-e6a0-489e-8b99-6868be950418/platforms/3787/download",
+    "packageUrl": "https://extensions.binary.ninja/v1/extensions/bc38a529-a346-403c-a632-123a76c9fa48/versions/7d70d0ea-e6a0-489e-8b99-6868be950418/platforms/3787/download?notrack=1",
+    "path": "rust_metadata_carver",
+    "platforms": [
+      "Darwin",
+      "Linux",
+      "Windows"
+    ],
+    "pluginmetadataversion": 2,
+    "projectData": {
+      "stargazers_count": 0,
+      "updated_at": "2026-08-02 06:48:15+00:00"
+    },
+    "projectUrl": "https://github.com/decoderloop/rust_metadata_carver",
+    "subdir": "",
+    "type": [
+      "helper",
+      "platform"
+    ],
+    "version": "1.0.0",
+    "view_only": false,
+    "sha256": "1zln2mgarb0rizlsasn5i8myzm0m46hzizi73mivzv63ljihda9s"
+  },
+  {
+    "api": [
+      "python3"
+    ],
+    "author": "YungBinary",
+    "dependencies": "",
+    "description": "Recover .NET Native AOT metadata in Binary Ninja — type hierarchy, virtual methods, and string literals from symbol-stripped binaries.",
+    "installinstructions": {},
+    "is_paid": false,
+    "lastUpdated": 1785861443,
+    "license": {
+      "name": "MIT",
+      "text": "MIT License\r\n\r\nCopyright (c) 2026 YungBinary\r\n\r\nThis project (binja-nativeaot) is a Binary Ninja port of \"ida-nativeaot\"\r\n(https://github.com/Dump-GUY/ida-nativeaot), which is itself an IDAPython\r\nport of \"ghidra-nativeaot\" (https://github.com/washi1337/ghidra-nativeaot),\r\nCopyright (c) Washi, licensed under the MIT License. The original algorithm\r\nand design are the work of Washi; this is a derivative work that reimplements\r\nit for Binary Ninja.\r\n\r\nPermission is hereby granted, free of charge, to any person obtaining a copy\r\nof this software and associated documentation files (the \"Software\"), to deal\r\nin the Software without restriction, including without limitation the rights\r\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\r\ncopies of the Software, and to permit persons to whom the Software is\r\nfurnished to do so, subject to the following conditions:\r\n\r\nThe above copyright notice and this permission notice shall be included in all\r\ncopies or substantial portions of the Software.\r\n\r\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\r\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\r\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\r\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\r\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\r\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\r\nSOFTWARE."
+    },
+    "longdescription": "Port of @Dump-GUY's ida-nativeaot (itself a port of @Washi1337's ghidra-nativeaot) to Binary Ninja. Recovers type metadata from .NET 7/8/9/10+ NativeAOT-compiled binaries whose symbols have been stripped.\n\nFeatures:\n- ReadyToRun (RTR) directory location (symbol-based + signature scan)\n- RTR header / section-table parsing and structure markup\n- Metadata rehydration (.NET 8.0+ dehydrated data decompression)\n- Manual pointer-scan fallback for .NET 7 / binaries without dehydration\n- Full MethodTable (EEType) type-hierarchy reconstruction\n- Virtual-method naming and function creation at vtable slots\n- Frozen-object annotation (string literals, SZ arrays, boxed values)\n- Interactive type hierarchy browser with search\n\n### Changelog\n1.0.0 release",
+    "minimumbinaryninjaversion": 4526,
+    "name": "NativeAOT",
+    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/bffe2de0-e0dd-47ba-9582-cba5eb53ff4d/versions/1ef37a6a-7c1b-4af6-9149-5eb39c19e09e/platforms/3781/download",
+    "packageUrl": "https://extensions.binary.ninja/v1/extensions/bffe2de0-e0dd-47ba-9582-cba5eb53ff4d/versions/1ef37a6a-7c1b-4af6-9149-5eb39c19e09e/platforms/3781/download?notrack=1",
+    "path": "nativeaot",
+    "platforms": [
+      "Darwin",
+      "Linux",
+      "Windows"
+    ],
+    "pluginmetadataversion": 2,
+    "projectData": {
+      "stargazers_count": 0,
+      "updated_at": "2026-08-04 16:37:23+00:00"
+    },
+    "projectUrl": "https://github.com/YungBinary/binja-nativeaot",
+    "subdir": "",
+    "type": [
+      "analysis",
+      "binaryview",
+      "platform"
+    ],
+    "version": "1.0.0",
+    "view_only": false,
+    "sha256": "045g8n3dpnmc1x728v0z84ia4pf5pczpr9i24kdnpy9yf6q58wdl"
+  },
+  {
     "api": [
       "python3"
     ],
@@ -1179,7 +1258,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 1119,
+      "stargazers_count": 1122,
       "updated_at": "2026-05-20 11:23:43+00:00"
     },
     "projectUrl": "https://github.com/mrphrazer/reverser_ai",
@@ -2007,7 +2086,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 739,
+      "stargazers_count": 741,
       "updated_at": "2026-06-07 16:55:58+00:00"
     },
     "projectUrl": "https://github.com/binsync/binsync",
@@ -3156,7 +3235,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 2369,
+      "stargazers_count": 2370,
       "updated_at": "2022-01-21 23:58:37+00:00"
     },
     "projectUrl": "https://github.com/bootleg/ret-sync",
@@ -3353,7 +3432,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 2567,
+      "stargazers_count": 2568,
       "updated_at": "2024-02-05 18:12:17+00:00"
     },
     "projectUrl": "https://github.com/gaasedelen/lighthouse",
@@ -3744,7 +3823,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 671,
+      "stargazers_count": 672,
       "updated_at": "2026-05-20 14:19:13+00:00"
     },
     "projectUrl": "https://github.com/mrphrazer/obfuscation_detection",
@@ -7333,6 +7412,46 @@
     "api": [
       "python3"
     ],
+    "author": "matteyeux",
+    "dependencies": "qbindiff>=1.2.3",
+    "description": "A Binary Ninja plugin for side-by-side binary diffing, powered by QBinDiff.",
+    "installinstructions": {},
+    "is_paid": false,
+    "lastUpdated": 1785946207,
+    "license": {
+      "name": "Apache 2.0",
+      "text": "Apache License\r\n Version 2.0, January 2004\r\n http://www.apache.org/licenses/\r\n\r\n TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION\r\n\r\n 1. Definitions.\r\n\r\n \"License\" shall mean the terms and conditions for use, reproduction,\r\n and distribution as defined by Sections 1 through 9 of this document.\r\n\r\n \"Licensor\" shall mean the copyright owner or entity authorized by\r\n the copyright owner that is granting the License.\r\n\r\n \"Legal Entity\" shall mean the union of the acting entity and all\r\n other entities that control, are controlled by, or are under common\r\n control with that entity. For the purposes of this definition,\r\n \"control\" means (i) the power, direct or indirect, to cause the\r\n direction or management of such entity, whether by contract or\r\n otherwise, or (ii) ownership of fifty percent (50%) or more of the\r\n outstanding shares, or (iii) beneficial ownership of such entity.\r\n\r\n \"You\" (or \"Your\") shall mean an individual or Legal Entity\r\n exercising permissions granted by this License.\r\n\r\n \"Source\" form shall mean the preferred form for making modifications,\r\n including but not limited to software source code, documentation\r\n source, and configuration files.\r\n\r\n \"Object\" form shall mean any form resulting from mechanical\r\n transformation or translation of a Source form, including but\r\n not limited to compiled object code, generated documentation,\r\n and conversions to other media types.\r\n\r\n \"Work\" shall mean the work of authorship, whether in Source or\r\n Object form, made available under the License, as indicated by a\r\n copyright notice that is included in or attached to the work\r\n (an example is provided in the Appendix below).\r\n\r\n \"Derivative Works\" shall mean any work, whether in Source or Object\r\n form, that is based on (or derived from) the Work and for which the\r\n editorial revisions, annotations, elaborations, or other modifications\r\n represent, as a whole, an original work of authorship. For the purposes\r\n of this License, Derivative Works shall not include works that remain\r\n separable from, or merely link (or bind by name) to the interfaces of,\r\n the Work and Derivative Works thereof.\r\n\r\n \"Contribution\" shall mean any work of authorship, including\r\n the original version of the Work and any modifications or additions\r\n to that Work or Derivative Works thereof, that is intentionally\r\n submitted to Licensor for inclusion in the Work by the copyright owner\r\n or by an individual or Legal Entity authorized to submit on behalf of\r\n the copyright owner. For the purposes of this definition, \"submitted\"\r\n means any form of electronic, verbal, or written communication sent\r\n to the Licensor or its representatives, including but not limited to\r\n communication on electronic mailing lists, source code control systems,\r\n and issue tracking systems that are managed by, or on behalf of, the\r\n Licensor for the purpose of discussing and improving the Work, but\r\n excluding communication that is conspicuously marked or otherwise\r\n designated in writing by the copyright owner as \"Not a Contribution.\"\r\n\r\n \"Contributor\" shall mean Licensor and any individual or Legal Entity\r\n on behalf of whom a Contribution has been received by Licensor and\r\n subsequently incorporated within the Work.\r\n\r\n 2. Grant of Copyright License. Subject to the terms and conditions of\r\n this License, each Contributor hereby grants to You a perpetual,\r\n worldwide, non-exclusive, no-charge, royalty-free, irrevocable\r\n copyright license to reproduce, prepare Derivative Works of,\r\n publicly display, publicly perform, sublicense, and distribute the\r\n Work and such Derivative Works in Source or Object form.\r\n\r\n 3. Grant of Patent License. Subject to the terms and conditions of\r\n this License, each Contributor hereby grants to You a perpetual,\r\n worldwide, non-exclusive, no-charge, royalty-free, irrevocable\r\n (except as stated in this section) patent license to make, have made,\r\n use, offer to sell, sell, import, and otherwise transfer the Work,\r\n where such license applies only to those patent claims licensable\r\n by such Contributor that are necessarily infringed by their\r\n Contribution(s) alone or by combination of their Contribution(s)\r\n with the Work to which such Contribution(s) was submitted. If You\r\n institute patent litigation against any entity (including a\r\n cross-claim or counterclaim in a lawsuit) alleging that the Work\r\n or a Contribution incorporated within the Work constitutes direct\r\n or contributory patent infringement, then any patent licenses\r\n granted to You under this License for that Work shall terminate\r\n as of the date such litigation is filed.\r\n\r\n 4. Redistribution. You may reproduce and distribute copies of the\r\n Work or Derivative Works thereof in any medium, with or without\r\n modifications, and in Source or Object form, provided that You\r\n meet the following conditions:\r\n\r\n (a) You must give any other recipients of the Work or\r\n Derivative Works a copy of this License; and\r\n\r\n (b) You must cause any modified files to carry prominent notices\r\n stating that You changed the files; and\r\n\r\n (c) You must retain, in the Source form of any Derivative Works\r\n that You distribute, all copyright, patent, trademark, and\r\n attribution notices from the Source form of the Work,\r\n excluding those notices that do not pertain to any part of\r\n the Derivative Works; and\r\n\r\n (d) If the Work includes a \"NOTICE\" text file as part of its\r\n distribution, then any Derivative Works that You distribute must\r\n include a readable copy of the attribution notices contained\r\n within such NOTICE file, excluding those notices that do not\r\n pertain to any part of the Derivative Works, in at least one\r\n of the following places: within a NOTICE text file distributed\r\n as part of the Derivative Works; within the Source form or\r\n documentation, if provided along with the Derivative Works; or,\r\n within a display generated by the Derivative Works, if and\r\n wherever such third-party notices normally appear. The contents\r\n of the NOTICE file are for informational purposes only and\r\n do not modify the License. You may add Your own attribution\r\n notices within Derivative Works that You distribute, alongside\r\n or as an addendum to the NOTICE text from the Work, provided\r\n that such additional attribution notices cannot be construed\r\n as modifying the License.\r\n\r\n You may add Your own copyright statement to Your modifications and\r\n may provide additional or different license terms and conditions\r\n for use, reproduction, or distribution of Your modifications, or\r\n for any such Derivative Works as a whole, provided Your use,\r\n reproduction, and distribution of the Work otherwise complies with\r\n the conditions stated in this License.\r\n\r\n 5. Submission of Contributions. Unless You explicitly state otherwise,\r\n any Contribution intentionally submitted for inclusion in the Work\r\n by You to the Licensor shall be under the terms and conditions of\r\n this License, without any additional terms or conditions.\r\n Notwithstanding the above, nothing herein shall supersede or modify\r\n the terms of any separate license agreement you may have executed\r\n with Licensor regarding such Contributions.\r\n\r\n 6. Trademarks. This License does not grant permission to use the trade\r\n names, trademarks, service marks, or product names of the Licensor,\r\n except as required for reasonable and customary use in describing the\r\n origin of the Work and reproducing the content of the NOTICE file.\r\n\r\n 7. Disclaimer of Warranty. Unless required by applicable law or\r\n agreed to in writing, Licensor provides the Work (and each\r\n Contributor provides its Contributions) on an \"AS IS\" BASIS,\r\n WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or\r\n implied, including, without limitation, any warranties or conditions\r\n of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A\r\n PARTICULAR PURPOSE. You are solely responsible for determining the\r\n appropriateness of using or redistributing the Work and assume any\r\n risks associated with Your exercise of permissions under this License.\r\n\r\n 8. Limitation of Liability. In no event and under no legal theory,\r\n whether in tort (including negligence), contract, or otherwise,\r\n unless required by applicable law (such as deliberate and grossly\r\n negligent acts) or agreed to in writing, shall any Contributor be\r\n liable to You for damages, including any direct, indirect, special,\r\n incidental, or consequential damages of any character arising as a\r\n result of this License or out of the use or inability to use the\r\n Work (including but not limited to damages for loss of goodwill,\r\n work stoppage, computer failure or malfunction, or any and all\r\n other commercial damages or losses), even if such Contributor\r\n has been advised of the possibility of such damages.\r\n\r\n 9. Accepting Warranty or Additional Liability. While redistributing\r\n the Work or Derivative Works thereof, You may choose to offer,\r\n and charge a fee for, acceptance of support, warranty, indemnity,\r\n or other liability obligations and/or rights consistent with this\r\n License. However, in accepting such obligations, You may act only\r\n on Your own behalf and on Your sole responsibility, not on behalf\r\n of any other Contributor, and only if You agree to indemnify,\r\n defend, and hold each Contributor harmless for any liability\r\n incurred by, or claims asserted against, such Contributor by reason\r\n of your accepting any such warranty or additional liability.\r\n\r\n END OF TERMS AND CONDITIONS"
+    },
+    "longdescription": "Diffs the currently open binary against a second file dropped onto the view. Function matching is performed by QBinDiff (Quarkslab) driven by a native Binary Ninja loader backend, so no intermediate export file (Quokka, BinExport) is required. Results are presented as a sortable function match table plus side-by-side panes for control flow graphs, assembly, and all three Binary Ninja IL levels.\n\n### Changelog\n- added license file (Apache 2.0)",
+    "minimumbinaryninjaversion": 9757,
+    "name": "Binja Diff",
+    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/0258ff8a-9805-4890-825d-ac9233cb6d45/versions/7cfc89ef-6275-4d5e-bee9-5f3207b98894/platforms/3799/download",
+    "packageUrl": "https://extensions.binary.ninja/v1/extensions/0258ff8a-9805-4890-825d-ac9233cb6d45/versions/7cfc89ef-6275-4d5e-bee9-5f3207b98894/platforms/3799/download?notrack=1",
+    "path": "binjadiff",
+    "platforms": [
+      "Darwin",
+      "Linux",
+      "Windows"
+    ],
+    "pluginmetadataversion": 2,
+    "projectData": {
+      "stargazers_count": 0,
+      "updated_at": "2026-08-05 16:10:07+00:00"
+    },
+    "projectUrl": "https://github.com/matteyeux/binja-diff/",
+    "subdir": "",
+    "type": [
+      "analysis",
+      "helper"
+    ],
+    "version": "1.0.0",
+    "view_only": false,
+    "sha256": "10d9bl6h0p2aacj267cbz06ca880k3q6xfcpkz34qf6bk0z8b12v"
+  },
+  {
+    "api": [
+      "python3"
+    ],
     "author": "Vector 35 Inc",
     "dependencies": "objgraph",
     "description": "A debugging tool for Binary Ninja plugin developers to detect and diagnose memory leaks related to BinaryView objects.",
@@ -8083,5 +8202,44 @@
     "version": "1.0.0",
     "view_only": false,
     "sha256": "0qj48gvim64x4ljl0sra52qcrqqbgpw001bqjnjqrzfjp281rb62"
+  },
+  {
+    "api": [
+      "python3"
+    ],
+    "author": "Joey DeFrancesco",
+    "dependencies": "",
+    "description": "MSPX430-Lens adds MSP430X firmware support to Binary Ninja, with a focus on the MSP430F5438/MSP430F5438A memory map",
+    "installinstructions": {},
+    "is_paid": false,
+    "lastUpdated": 1785564656,
+    "license": {
+      "name": "MIT",
+      "text": "MIT License\r\n\r\nCopyright (c) 2026 J. DeFrancesco\r\n\r\nPermission is hereby granted, free of charge, to any person obtaining a copy\r\nof this software and associated documentation files (the \"Software\"), to deal\r\nin the Software without restriction, including without limitation the rights\r\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\r\ncopies of the Software, and to permit persons to whom the Software is\r\nfurnished to do so, subject to the following conditions:\r\n\r\nThe above copyright notice and this permission notice shall be included in all\r\ncopies or substantial portions of the Software.\r\n\r\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\r\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\r\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\r\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\r\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\r\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\r\nSOFTWARE."
+    },
+    "longdescription": "Adds MSP430X architecture support with LLIL lifting and a mapped raw-firmware BinaryView (ELF format works as well). Note the MSP430F5438 and MSP430F5438A devices were tested targets. It seeds memory regions, interrupt vectors, and TI header labels so raw firmware is ready for analysis. MSP430X support will become more robost in the future. Hopefully handling other specific MCUs with MSP430X ISA \n\n### Changelog\nThis is the first official release of the MSP430X plugin. It allows Binary Ninja to correctly disassemble/decompile raw MSP430XF5xxx firmware. Lifting for this ISA can be tricky do to their 16-bit RISC MCU using 20-bit address space. Along with their decision to utilize parts of the SR for dealing. with 20-bit addresses. If you open an MSP430X firmware binary disassembly will not happen. If you attempt to use Ghidra you will see output riddled with bit artifacts that make no sense forcing you to mostly just read the disassembly. This plugin saves you from such hell. Development is on going. Please report any issues. Thanks",
+    "minimumbinaryninjaversion": 9757,
+    "name": "MSP430X Lens",
+    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/ab8c6dbf-9922-48e6-8d28-64ae05319539/versions/34167922-c2f6-437a-91ab-29b34369cbdf/platforms/3793/download",
+    "packageUrl": "https://extensions.binary.ninja/v1/extensions/ab8c6dbf-9922-48e6-8d28-64ae05319539/versions/34167922-c2f6-437a-91ab-29b34369cbdf/platforms/3793/download?notrack=1",
+    "path": "msp430xlens",
+    "platforms": [
+      "Darwin",
+      "Linux",
+      "Windows"
+    ],
+    "pluginmetadataversion": 2,
+    "projectData": {
+      "stargazers_count": 0,
+      "updated_at": "2026-08-01 06:10:56+00:00"
+    },
+    "projectUrl": "https://github.com/jdefrancesco/MSP430X-Lens",
+    "subdir": "",
+    "type": [
+      "architecture"
+    ],
+    "version": "0.1.0",
+    "view_only": false,
+    "sha256": "15aikcr3sl2zy3nshiagzw1kdms1z6f7zakivrn4yxh06kv9i4a7"
   }
 ]
