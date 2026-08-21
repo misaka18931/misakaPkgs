@@ -1,43 +1,5 @@
 [
   {
-    "api": [],
-    "author": "Decoder Loop Technologies",
-    "dependencies": "",
-    "description": "Binary Ninja plugin to find metadata from Rust binaries",
-    "installinstructions": {},
-    "is_paid": false,
-    "lastUpdated": 1785653295,
-    "license": {
-      "name": "MIT",
-      "text": "Copyright (c) 2026 Decoder Loop Technologies\r\n\r\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\r\n\r\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\r\n\r\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
-    },
-    "longdescription": "# Rust Metadata Carver\n\nBinary Ninja plugin to find metadata from Rust binaries, including:\n\n- Source file locations from panic unwind metadata (i.e. `core::panic::Location` structs embedded in the binary) \n\n![A screenshot of several Rust \"core::panic::Location\" structs, all with the source file path \"library\\std\\src\\sys\\windows\\stdio.rs\" and each with a line number and column number.](images/panic-location-structs-screenshot-border.png)\n\n![A screenshot of the Tags interface in Binary Ninja, showing a large number of tags labelled with the source file path, source file line, and source file column of panic location metadata embedded inside a Rust binary. For example, one tag has the label \"library\\std\\src\\sys\\windows\\c.rs: line 1362, col 9\". All tags are using the 😱 emoji as an icon.](images/panic-path-tags-screenshot-border.png)\n\n## Usage\n\nThis plugin provides the following commands:\n\n1) _Plugins_ > _Rust Metadata Carver_ > _Find Panic Location Paths_\n2) _Plugins_ > _Rust Metadata Carver_ > _Recover Panic Location Metadata Structures_\n\nFirst run the _Find Panic Location Paths_ command, then the _Recover Panic Location Metadata Structures_ command.\n\n### _Plugins_ > _Rust Metadata Carver_ > _Find Panic Location Paths_\n\nThis command finds all Rust `&str` string slices in the binary that are also possible Rust source file paths.\n\nThe command will create a new `&str` type in the _Types_ pane.\n\n![alt text](images/str-type-cross-references-border.png)\n\n### _Plugins_ > _Rust Metadata Carver_ > _Recover Panic Location Metadata Structures_\n\n**Note: This will only work if you've run the _Find Panic Location Paths_ command first!**\n\nThis command recovers all `core::panic::Location` metadata structures from the binary. \n\nThis command also finds all cross-references, inside the code, to each `core::panic::Location` structure. It creates a new tag (labelled with the emoji 😱) at each code location that references a `core::panic::Location` structure.\n\n![A screenshot of a decompiled function in Binary Ninja, showing pseudo-C decompiler output with several function calls. A function call with the decompiled code `sub_47eed0(\"called `Option::unwrap()` on a `None` value\", 0x2b, &panic_location_str_\"src\\main.rs\")` has a 😱 emoji marked at its address. The hover-over text of another 😱 is shown, saying \"Tags at address 0x40a0d3: src\\main.rs - Rust Panic Location Source File Path: src\\main.rs: line 30, col 26\"](images/panic-location-references-and-tags-border.png)\n\nThe full list of all found `core::panic::Location` metadata structures can be found in Binary Ninja's _Tags_ pane. Each `core::panic::Location` that shares the same original Rust source file path is grouped together.\n\n![A screenshot of the Tags interface in Binary Ninja, showing a large number of tags labelled with the source file path, source file line, and source file column of panic location metadata embedded inside a Rust binary. All tags are using the 😱 emoji as an icon. The line `src\\main.rs: line 120, col 40` is highlighted.](images/panic-path-tags-screenshot-2-border.png)\n\n## Minimum Version\n\n4689\n\n## License\n\nThis plugin is released under an [MIT license](./LICENSE).\n\n## Metadata Version\n\n2\n\n## Development\n\n### Setting up a development environment\n\nTo set up a development environment, including setting up a Python virtual environment:\n\n```\npython -m venv .venv && . .venv/bin/activate\npython $PATH_TO_BINARY_NINJA_INSTALLATION/scripts/install_api.py\n```\n\n### Testing local versions of the plugin\n\nTo test the plugin locally in your own Binary Ninja installation during development, create a symbolic link between your development folder, and the [Binary Ninja user plugins folder](https://docs.binary.ninja/guide/index.html#user-folder), so that your development folder is loaded by Binary Ninja on startup as a plugin.\n\n- MacOS:\n\n ```sh\n ln -s `pwd` ~/Library/Application\\ Support/Binary\\ Ninja/plugins/rust_metadata_carver\n ```\n\n- Linux:\n\n ```sh\n ln -s --relative . ~/.binaryninja/plugins/rust_metadata_carver\n ```\n\n- Windows (Powershell):\n ```powershell\n New-Item -ItemType Junction -Value $(Get-Location) -Path \"$env:APPDATA\\Binary Ninja\\plugins\\rust_metadata_carver\"\n ```\n\nYou should then change the values of the following Python settings in Binary Ninja to point to inside your development folder's virtual environment:\n\n- `python.binaryOverride`: Set this to the path of the Python interpreter inside your development virtual environment, e.g. `$DEVELOPMENT_FOLDER/rust_metadata_carver/.venv/bin/python/`\n- `python.virtualenv`: Set this to the path of the `site-packages` directory inside your development virtual environment, e.g. `$DEVELOPMENT_FOLDER/rust_metadata_carver/.venv/lib/python3.11/site-packages`\n\n\n### Changelog\n## 1.0.0 (2026-08-02)\n\n\n### Features\n\n* Add logic to create string slices ([e21a6aa](https://github.com/decoderloop/rust_metadata_carver/commit/e21a6aacc3dafc50a3aa2e1155faa971baaccbe5))\n* Deal with renaming of RustStringSlice to &str ([07c9035](https://github.com/decoderloop/rust_metadata_carver/commit/07c9035be0ce8bd4ab7931c3d82a952f8d152992))\n* Define core::panic::Location type ([173fc4b](https://github.com/decoderloop/rust_metadata_carver/commit/173fc4bcd1ecd76f4b92193d4ad9624113444c67))\n* Improve logging text for panic location tags ([7d58243](https://github.com/decoderloop/rust_metadata_carver/commit/7d582435044576e32b5e0b78f404a37ab76476bb))\n* Put all actions into a single undo block ([6da16a8](https://github.com/decoderloop/rust_metadata_carver/commit/6da16a8510ff73bee4f199736db60d35a62b35ab))\n\n\n### Bug Fixes\n\n* Deal with cases where DataVariable.value is already a string ([9f8f4eb](https://github.com/decoderloop/rust_metadata_carver/commit/9f8f4eb166a3156be80afc3adc28dfc382700054))",
-    "minimumbinaryninjaversion": 4689,
-    "name": "Rust Metadata Carver",
-    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/bc38a529-a346-403c-a632-123a76c9fa48/versions/7d70d0ea-e6a0-489e-8b99-6868be950418/platforms/3787/download",
-    "packageUrl": "https://extensions.binary.ninja/v1/extensions/bc38a529-a346-403c-a632-123a76c9fa48/versions/7d70d0ea-e6a0-489e-8b99-6868be950418/platforms/3787/download?notrack=1",
-    "path": "rust_metadata_carver",
-    "platforms": [
-      "Darwin",
-      "Linux",
-      "Windows"
-    ],
-    "pluginmetadataversion": 2,
-    "projectData": {
-      "stargazers_count": 5,
-      "updated_at": "2026-08-02 06:48:15+00:00"
-    },
-    "projectUrl": "https://github.com/decoderloop/rust_metadata_carver",
-    "subdir": "",
-    "type": [
-      "helper",
-      "platform"
-    ],
-    "version": "1.0.0",
-    "view_only": false,
-    "sha256": "1zln2mgarb0rizlsasn5i8myzm0m46hzizi73mivzv63ljihda9s"
-  },
-  {
     "api": [
       "python3"
     ],
@@ -77,6 +39,45 @@
     "version": "1.0.0",
     "view_only": false,
     "sha256": "045g8n3dpnmc1x728v0z84ia4pf5pczpr9i24kdnpy9yf6q58wdl"
+  },
+  {
+    "api": [
+      "python3"
+    ],
+    "author": "psifertex (original by lele394)",
+    "dependencies": "",
+    "description": "Browse, preview, and install themes from within Binary Ninja. Shows live linear and graph view previews before switching.",
+    "installinstructions": {},
+    "is_paid": false,
+    "lastUpdated": 1787240596,
+    "license": {
+      "name": "MIT",
+      "text": "MIT License\r\n\r\nCopyright (c) 2026 Léo BECHET\r\nCopyright (c) 2026 Jordan Wiens\r\n\r\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\r\n\r\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\r\n\r\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
+    },
+    "longdescription": "# Swatch\n\n> Color themes for Binary Ninja, with a live preview before you switch.\n\nBrowse, preview, and apply [`.bntheme`](https://docs.binary.ninja/dev/themes.html)\ncolor themes inside Binary Ninja include the themes Binary Ninja ships and ones\nfrom community repositories. Every theme renders a sample linear view and flow\ngraph in its own colors.\n\n## Preview\n\n![Swatch](https://github.com/psifertex/Swatch/blob/main/rsc/image.png?raw=true)\n\n## What it does\n\n- Lists Binary Ninja's own built-in themes\n- Lists themes from configured GitHub repositories\n- Shows themes installed locally\n- Live preview of a theme \n- Installs and applies themes directly from the UI\n- Search/filter with a quick-clear button, plus `@dark`, `@light`, `@local`\n and `@remote` keywords for filtering by brightness or availability\n\n## Storage\n\nInstalled themes are saved under Binary Ninja's\n[user folder](https://docs.binary.ninja/guide/index.html#user-folder), which is\nplatform-dependent, in the `community-themes/` subfolder — e.g. on Linux:\n\n```\n~/.binaryninja/community-themes/\n```\n\nBinary Ninja scans both `themes/` and `community-themes/` there, so themes\ninstalled by this plugin are picked up alongside any you cloned yourself.\n\nWriting your own? See [Creating Themes](https://docs.binary.ninja/dev/themes.html)\nfor the `.bntheme` file format.\n\n## Usage\n\nOpen:\n\n```\nPlugins → Swatch (Theme Picker)\n```\n\nTo report a problem, use **Plugins → Swatch (Report an Issue)**.\n\n## Official themes\n\nBinary Ninja's own themes are listed under **BUILT IN**. They ship with Binary\nNinja rather than being downloaded, so they are always available and never need\ninstalling. Their sources are open and live in the API repository:\n\nhttps://github.com/Vector35/binaryninja-api/tree/dev/themes\n\nBinary Ninja bundles those `.bntheme` files as Qt resources, which is what\nSwatch reads to preview a built-in theme without switching to it first.\n\n## Community repos\n\nThese are listed by default. Add or remove repositories under\n**Settings → Swatch → Theme Repositories**, writing each as `owner/repo`, or\n`owner/repo/path` when the themes live in a subdirectory.\n\n- Vector35 – community themes \n https://github.com/Vector35/community-themes\n\n- Catppuccin – Binary Ninja themes \n https://github.com/catppuccin/binary-ninja/tree/main/themes\n\n- Dracula – Binary Ninja theme \n https://github.com/dracula/binary-ninja\n\n- Evan Richter – Base16 Binary Ninja colors \n https://github.com/evanrichter/base16-binary-ninja\n\n- FuzzySecurity – Binary Ninja themes \n https://github.com/FuzzySecurity/BinaryNinja-Themes\n\n## Requirements\n\n- Binary Ninja (see `minimumbinaryninjaversion` in `plugin.json` for the minimum build)\n- Internet access for fetching themes\n\n\n## Credits and licensing\n\nOriginally created by [Léo BECHET (lele394)](https://github.com/lele394/Binary-Ninja-Theme-Manager)\nand published under the MIT license, which this fork continues under. Léo's\ncopyright notice is retained alongside this fork's, as MIT requires.\n\nIn August 2026 the upstream repository replaced its MIT license with terms that\ngrant no rights and restrict AI-related use of the project. This fork's history\ndoes not include that change and all code here predates it and was published\nunder MIT. If you want the upstream project under its current terms, follow the\nlink above.\n\n\n### Changelog\nrebrand to swatch, light/dark filter, add repos to settings",
+    "minimumbinaryninjaversion": 8104,
+    "name": "Swatch",
+    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/dbf35696-75d3-4f47-a8ff-1fdcefa2a979/versions/f0324dcc-e6c2-41df-a49d-f4fda5677cb9/platforms/3883/download",
+    "packageUrl": "https://extensions.binary.ninja/v1/extensions/dbf35696-75d3-4f47-a8ff-1fdcefa2a979/versions/f0324dcc-e6c2-41df-a49d-f4fda5677cb9/platforms/3883/download?notrack=1",
+    "path": "swatch",
+    "platforms": [
+      "Darwin",
+      "Linux",
+      "Windows"
+    ],
+    "pluginmetadataversion": 2,
+    "projectData": {
+      "stargazers_count": 0,
+      "updated_at": "2026-08-20 15:43:16+00:00"
+    },
+    "projectUrl": "https://github.com/psifertex/Swatch",
+    "subdir": "",
+    "type": [
+      "ui"
+    ],
+    "version": "1.1",
+    "view_only": false,
+    "sha256": "0l74lsd7kmqxg3yh7x93pqlz3qfxjlkqzg8afm7vl9kv4lm8azhy"
   },
   {
     "api": [
@@ -2086,7 +2087,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 744,
+      "stargazers_count": 743,
       "updated_at": "2026-06-07 16:55:58+00:00"
     },
     "projectUrl": "https://github.com/binsync/binsync",
@@ -3389,7 +3390,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 2572,
+      "stargazers_count": 2571,
       "updated_at": "2024-02-05 18:12:17+00:00"
     },
     "projectUrl": "https://github.com/gaasedelen/lighthouse",
@@ -6600,7 +6601,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 669,
+      "stargazers_count": 670,
       "updated_at": "2026-06-15 13:51:10+00:00"
     },
     "projectUrl": "https://github.com/buzzer-re/Rikugan/",
@@ -7086,45 +7087,6 @@
     "version": "1.0.0",
     "view_only": false,
     "sha256": "07q0p7h25gvjd7wa6qhjg132zv4ykpkp952a7m2x3ns10lmsy7ll"
-  },
-  {
-    "api": [
-      "python3"
-    ],
-    "author": "lele394",
-    "dependencies": "",
-    "description": "Download and manage themes from different repos.",
-    "installinstructions": {},
-    "is_paid": false,
-    "lastUpdated": 1782899473,
-    "license": {
-      "name": "MIT",
-      "text": "Copyright (c) 2026 Léo BECHET\r\n\r\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\r\n\r\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\r\n\r\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
-    },
-    "longdescription": "# A Theme Manager For Binary Ninja\n\n> Developed for Binary Ninja 5.3\n\nA simple plugin for browsing, installing, and applying community `.bntheme` themes inside Binary Ninja.\n\n## Preview\n\n![Theme Manager](rsc/image.png)\n\n## What it does\n\n- Lists themes from configured GitHub repositories, grouped in a collapsible list\n- Shows installed themes locally\n- Live preview of a theme — a sample linear view and flow graph rendered with the\n theme's own colors, before you apply it (remote themes are fetched on demand)\n- Installs and applies themes directly from the UI\n- Search/filter with a quick-clear button\n\n## Storage\n\nInstalled themes are saved under Binary Ninja's user directory (platform-dependent),\nin the `community-themes/` subfolder — e.g. on Linux:\n\n```\n~/.binaryninja/community-themes/\n```\n\n## Usage\n\nOpen:\n\n```\nPlugins → Theme Manager\n```\n\nThen:\n- **Select** a theme in the list to preview it\n- Click **Install** to download a remote theme, or **Set Active** to apply an\n installed one (may need restart)\n\n## Supported repos\n\n- Vector35 – community themes \n https://github.com/Vector35/community-themes\n\n- Catppuccin – Binary Ninja themes \n https://github.com/catppuccin/binary-ninja/tree/main/themes\n\n- Dracula – Binary Ninja theme \n https://github.com/dracula/binary-ninja\n\n- Evan Richter – Base16 Binary Ninja colors \n https://github.com/evanrichter/base16-binary-ninja\n\n- FuzzySecurity – Binary Ninja themes \n https://github.com/FuzzySecurity/BinaryNinja-Themes\n\n## Requirements\n\n- Binary Ninja 5.3+\n- Internet access for fetching themes\n\n\n\n### Changelog\n* add preview UI and fix a few bugs by @psifertex in https://github.com/lele394/Binary-Ninja-Theme-Manager/pull/3",
-    "minimumbinaryninjaversion": 8104,
-    "name": "Theme Manager",
-    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/b746ffa9-7ec3-4f89-a26b-88dea5b84c1a/versions/70956616-b844-4ba8-a87d-c24e03f43d91/platforms/3613/download",
-    "packageUrl": "https://extensions.binary.ninja/v1/extensions/b746ffa9-7ec3-4f89-a26b-88dea5b84c1a/versions/70956616-b844-4ba8-a87d-c24e03f43d91/platforms/3613/download?notrack=1",
-    "path": "lele394_Binary_Ninja_Theme_Manager",
-    "platforms": [
-      "Darwin",
-      "Linux",
-      "Windows"
-    ],
-    "pluginmetadataversion": 2,
-    "projectData": {
-      "stargazers_count": 0,
-      "updated_at": "2026-07-01 09:51:13+00:00"
-    },
-    "projectUrl": "https://github.com/lele394/Binary-Ninja-Theme-Manager",
-    "subdir": "",
-    "type": [
-      "ui"
-    ],
-    "version": "0.2.0",
-    "view_only": false,
-    "sha256": "1xlw9mkk51r39vjvvw6i50h720brm7yg3n25pg8p7zfnc3dlh015"
   },
   {
     "api": [
@@ -8198,5 +8160,43 @@
     "version": "0.6.0",
     "view_only": false,
     "sha256": "07jlss634gnmlclxyw7phpfibaq6d1h4yr2w53vcdhaqgfb5hj8g"
+  },
+  {
+    "api": [],
+    "author": "Decoder Loop Technologies",
+    "dependencies": "",
+    "description": "Binary Ninja plugin to find metadata from Rust binaries",
+    "installinstructions": {},
+    "is_paid": false,
+    "lastUpdated": 1785653295,
+    "license": {
+      "name": "MIT",
+      "text": "Copyright (c) 2026 Decoder Loop Technologies\r\n\r\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\r\n\r\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\r\n\r\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
+    },
+    "longdescription": "# Rust Metadata Carver\n\nBinary Ninja plugin to find metadata from Rust binaries, including:\n\n- Source file locations from panic unwind metadata (i.e. `core::panic::Location` structs embedded in the binary) \n\n![A screenshot of several Rust \"core::panic::Location\" structs, all with the source file path \"library\\std\\src\\sys\\windows\\stdio.rs\" and each with a line number and column number.](images/panic-location-structs-screenshot-border.png)\n\n![A screenshot of the Tags interface in Binary Ninja, showing a large number of tags labelled with the source file path, source file line, and source file column of panic location metadata embedded inside a Rust binary. For example, one tag has the label \"library\\std\\src\\sys\\windows\\c.rs: line 1362, col 9\". All tags are using the 😱 emoji as an icon.](images/panic-path-tags-screenshot-border.png)\n\n## Usage\n\nThis plugin provides the following commands:\n\n1) _Plugins_ > _Rust Metadata Carver_ > _Find Panic Location Paths_\n2) _Plugins_ > _Rust Metadata Carver_ > _Recover Panic Location Metadata Structures_\n\nFirst run the _Find Panic Location Paths_ command, then the _Recover Panic Location Metadata Structures_ command.\n\n### _Plugins_ > _Rust Metadata Carver_ > _Find Panic Location Paths_\n\nThis command finds all Rust `&str` string slices in the binary that are also possible Rust source file paths.\n\nThe command will create a new `&str` type in the _Types_ pane.\n\n![alt text](images/str-type-cross-references-border.png)\n\n### _Plugins_ > _Rust Metadata Carver_ > _Recover Panic Location Metadata Structures_\n\n**Note: This will only work if you've run the _Find Panic Location Paths_ command first!**\n\nThis command recovers all `core::panic::Location` metadata structures from the binary. \n\nThis command also finds all cross-references, inside the code, to each `core::panic::Location` structure. It creates a new tag (labelled with the emoji 😱) at each code location that references a `core::panic::Location` structure.\n\n![A screenshot of a decompiled function in Binary Ninja, showing pseudo-C decompiler output with several function calls. A function call with the decompiled code `sub_47eed0(\"called `Option::unwrap()` on a `None` value\", 0x2b, &panic_location_str_\"src\\main.rs\")` has a 😱 emoji marked at its address. The hover-over text of another 😱 is shown, saying \"Tags at address 0x40a0d3: src\\main.rs - Rust Panic Location Source File Path: src\\main.rs: line 30, col 26\"](images/panic-location-references-and-tags-border.png)\n\nThe full list of all found `core::panic::Location` metadata structures can be found in Binary Ninja's _Tags_ pane. Each `core::panic::Location` that shares the same original Rust source file path is grouped together.\n\n![A screenshot of the Tags interface in Binary Ninja, showing a large number of tags labelled with the source file path, source file line, and source file column of panic location metadata embedded inside a Rust binary. All tags are using the 😱 emoji as an icon. The line `src\\main.rs: line 120, col 40` is highlighted.](images/panic-path-tags-screenshot-2-border.png)\n\n## Minimum Version\n\n4689\n\n## License\n\nThis plugin is released under an [MIT license](./LICENSE).\n\n## Metadata Version\n\n2\n\n## Development\n\n### Setting up a development environment\n\nTo set up a development environment, including setting up a Python virtual environment:\n\n```\npython -m venv .venv && . .venv/bin/activate\npython $PATH_TO_BINARY_NINJA_INSTALLATION/scripts/install_api.py\n```\n\n### Testing local versions of the plugin\n\nTo test the plugin locally in your own Binary Ninja installation during development, create a symbolic link between your development folder, and the [Binary Ninja user plugins folder](https://docs.binary.ninja/guide/index.html#user-folder), so that your development folder is loaded by Binary Ninja on startup as a plugin.\n\n- MacOS:\n\n ```sh\n ln -s `pwd` ~/Library/Application\\ Support/Binary\\ Ninja/plugins/rust_metadata_carver\n ```\n\n- Linux:\n\n ```sh\n ln -s --relative . ~/.binaryninja/plugins/rust_metadata_carver\n ```\n\n- Windows (Powershell):\n ```powershell\n New-Item -ItemType Junction -Value $(Get-Location) -Path \"$env:APPDATA\\Binary Ninja\\plugins\\rust_metadata_carver\"\n ```\n\nYou should then change the values of the following Python settings in Binary Ninja to point to inside your development folder's virtual environment:\n\n- `python.binaryOverride`: Set this to the path of the Python interpreter inside your development virtual environment, e.g. `$DEVELOPMENT_FOLDER/rust_metadata_carver/.venv/bin/python/`\n- `python.virtualenv`: Set this to the path of the `site-packages` directory inside your development virtual environment, e.g. `$DEVELOPMENT_FOLDER/rust_metadata_carver/.venv/lib/python3.11/site-packages`\n\n\n### Changelog\n## 1.0.0 (2026-08-02)\n\n\n### Features\n\n* Add logic to create string slices ([e21a6aa](https://github.com/decoderloop/rust_metadata_carver/commit/e21a6aacc3dafc50a3aa2e1155faa971baaccbe5))\n* Deal with renaming of RustStringSlice to &str ([07c9035](https://github.com/decoderloop/rust_metadata_carver/commit/07c9035be0ce8bd4ab7931c3d82a952f8d152992))\n* Define core::panic::Location type ([173fc4b](https://github.com/decoderloop/rust_metadata_carver/commit/173fc4bcd1ecd76f4b92193d4ad9624113444c67))\n* Improve logging text for panic location tags ([7d58243](https://github.com/decoderloop/rust_metadata_carver/commit/7d582435044576e32b5e0b78f404a37ab76476bb))\n* Put all actions into a single undo block ([6da16a8](https://github.com/decoderloop/rust_metadata_carver/commit/6da16a8510ff73bee4f199736db60d35a62b35ab))\n\n\n### Bug Fixes\n\n* Deal with cases where DataVariable.value is already a string ([9f8f4eb](https://github.com/decoderloop/rust_metadata_carver/commit/9f8f4eb166a3156be80afc3adc28dfc382700054))",
+    "minimumbinaryninjaversion": 4689,
+    "name": "Rust Metadata Carver",
+    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/bc38a529-a346-403c-a632-123a76c9fa48/versions/7d70d0ea-e6a0-489e-8b99-6868be950418/platforms/3787/download",
+    "packageUrl": "https://extensions.binary.ninja/v1/extensions/bc38a529-a346-403c-a632-123a76c9fa48/versions/7d70d0ea-e6a0-489e-8b99-6868be950418/platforms/3787/download?notrack=1",
+    "path": "rust_metadata_carver",
+    "platforms": [
+      "Darwin",
+      "Linux",
+      "Windows"
+    ],
+    "pluginmetadataversion": 2,
+    "projectData": {
+      "stargazers_count": 5,
+      "updated_at": "2026-08-02 06:48:15+00:00"
+    },
+    "projectUrl": "https://github.com/decoderloop/rust_metadata_carver",
+    "subdir": "",
+    "type": [
+      "helper",
+      "platform"
+    ],
+    "version": "1.0.0",
+    "view_only": false,
+    "sha256": "1zln2mgarb0rizlsasn5i8myzm0m46hzizi73mivzv63ljihda9s"
   }
 ]
