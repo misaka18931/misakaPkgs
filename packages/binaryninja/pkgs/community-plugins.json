@@ -3,6 +3,45 @@
     "api": [
       "python3"
     ],
+    "author": "psifertex (original by lele394)",
+    "dependencies": "",
+    "description": "Browse, preview, and install themes from within Binary Ninja. Shows live linear and graph view previews before switching.",
+    "installinstructions": {},
+    "is_paid": false,
+    "lastUpdated": 1787240596,
+    "license": {
+      "name": "MIT",
+      "text": "MIT License\r\n\r\nCopyright (c) 2026 Léo BECHET\r\nCopyright (c) 2026 Jordan Wiens\r\n\r\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\r\n\r\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\r\n\r\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
+    },
+    "longdescription": "# Swatch\n\n> Color themes for Binary Ninja, with a live preview before you switch.\n\nBrowse, preview, and apply [`.bntheme`](https://docs.binary.ninja/dev/themes.html)\ncolor themes inside Binary Ninja include the themes Binary Ninja ships and ones\nfrom community repositories. Every theme renders a sample linear view and flow\ngraph in its own colors.\n\n## Preview\n\n![Swatch](https://github.com/psifertex/Swatch/blob/main/rsc/image.png?raw=true)\n\n## What it does\n\n- Lists Binary Ninja's own built-in themes\n- Lists themes from configured GitHub repositories\n- Shows themes installed locally\n- Live preview of a theme \n- Installs and applies themes directly from the UI\n- Search/filter with a quick-clear button, plus `@dark`, `@light`, `@local`\n and `@remote` keywords for filtering by brightness or availability\n\n## Storage\n\nInstalled themes are saved under Binary Ninja's\n[user folder](https://docs.binary.ninja/guide/index.html#user-folder), which is\nplatform-dependent, in the `community-themes/` subfolder — e.g. on Linux:\n\n```\n~/.binaryninja/community-themes/\n```\n\nBinary Ninja scans both `themes/` and `community-themes/` there, so themes\ninstalled by this plugin are picked up alongside any you cloned yourself.\n\nWriting your own? See [Creating Themes](https://docs.binary.ninja/dev/themes.html)\nfor the `.bntheme` file format.\n\n## Usage\n\nOpen:\n\n```\nPlugins → Swatch (Theme Picker)\n```\n\nTo report a problem, use **Plugins → Swatch (Report an Issue)**.\n\n## Official themes\n\nBinary Ninja's own themes are listed under **BUILT IN**. They ship with Binary\nNinja rather than being downloaded, so they are always available and never need\ninstalling. Their sources are open and live in the API repository:\n\nhttps://github.com/Vector35/binaryninja-api/tree/dev/themes\n\nBinary Ninja bundles those `.bntheme` files as Qt resources, which is what\nSwatch reads to preview a built-in theme without switching to it first.\n\n## Community repos\n\nThese are listed by default. Add or remove repositories under\n**Settings → Swatch → Theme Repositories**, writing each as `owner/repo`, or\n`owner/repo/path` when the themes live in a subdirectory.\n\n- Vector35 – community themes \n https://github.com/Vector35/community-themes\n\n- Catppuccin – Binary Ninja themes \n https://github.com/catppuccin/binary-ninja/tree/main/themes\n\n- Dracula – Binary Ninja theme \n https://github.com/dracula/binary-ninja\n\n- Evan Richter – Base16 Binary Ninja colors \n https://github.com/evanrichter/base16-binary-ninja\n\n- FuzzySecurity – Binary Ninja themes \n https://github.com/FuzzySecurity/BinaryNinja-Themes\n\n## Requirements\n\n- Binary Ninja (see `minimumbinaryninjaversion` in `plugin.json` for the minimum build)\n- Internet access for fetching themes\n\n\n## Credits and licensing\n\nOriginally created by [Léo BECHET (lele394)](https://github.com/lele394/Binary-Ninja-Theme-Manager)\nand published under the MIT license, which this fork continues under. Léo's\ncopyright notice is retained alongside this fork's, as MIT requires.\n\nIn August 2026 the upstream repository replaced its MIT license with terms that\ngrant no rights and restrict AI-related use of the project. This fork's history\ndoes not include that change and all code here predates it and was published\nunder MIT. If you want the upstream project under its current terms, follow the\nlink above.\n\n\n### Changelog\nrebrand to swatch, light/dark filter, add repos to settings",
+    "minimumbinaryninjaversion": 8104,
+    "name": "Swatch",
+    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/dbf35696-75d3-4f47-a8ff-1fdcefa2a979/versions/f0324dcc-e6c2-41df-a49d-f4fda5677cb9/platforms/3883/download",
+    "packageUrl": "https://extensions.binary.ninja/v1/extensions/dbf35696-75d3-4f47-a8ff-1fdcefa2a979/versions/f0324dcc-e6c2-41df-a49d-f4fda5677cb9/platforms/3883/download?notrack=1",
+    "path": "swatch",
+    "platforms": [
+      "Darwin",
+      "Linux",
+      "Windows"
+    ],
+    "pluginmetadataversion": 2,
+    "projectData": {
+      "stargazers_count": 0,
+      "updated_at": "2026-08-20 15:43:16+00:00"
+    },
+    "projectUrl": "https://github.com/psifertex/Swatch",
+    "subdir": "",
+    "type": [
+      "ui"
+    ],
+    "version": "1.1",
+    "view_only": false,
+    "sha256": "0l74lsd7kmqxg3yh7x93pqlz3qfxjlkqzg8afm7vl9kv4lm8azhy"
+  },
+  {
+    "api": [
+      "python3"
+    ],
     "author": "Decoder Loop Technologies",
     "dependencies": "",
     "description": "Binary Ninja plugin to find metadata from Rust binaries",
@@ -26,7 +65,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 5,
+      "stargazers_count": 7,
       "updated_at": "2026-08-02 06:48:15+00:00"
     },
     "projectUrl": "https://github.com/decoderloop/rust_metadata_carver",
@@ -8095,16 +8134,16 @@
     "description": "MSPX430-Lens adds MSP430X firmware support to Binary Ninja, with a focus on the MSP430F5438/MSP430F5438A memory map",
     "installinstructions": {},
     "is_paid": false,
-    "lastUpdated": 1787597147,
+    "lastUpdated": 1787672472,
     "license": {
       "name": "MIT",
       "text": "MIT License\r\n\r\nCopyright (c) 2026 J. DeFrancesco\r\n\r\nPermission is hereby granted, free of charge, to any person obtaining a copy\r\nof this software and associated documentation files (the \"Software\"), to deal\r\nin the Software without restriction, including without limitation the rights\r\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\r\ncopies of the Software, and to permit persons to whom the Software is\r\nfurnished to do so, subject to the following conditions:\r\n\r\nThe above copyright notice and this permission notice shall be included in all\r\ncopies or substantial portions of the Software.\r\n\r\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\r\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\r\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\r\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\r\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\r\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\r\nSOFTWARE."
     },
-    "longdescription": "Adds MSP430X instruction decoding, disassembly, LLIL lifting, and a mapped raw-firmware BinaryView. Raw firmware is the primary workflow, with ELF files supported as well. MSP430F5438 and MSP430F5438A are the currently tested device profiles. The loader seeds memory regions, interrupt vectors, conservative code islands, and TI header labels so firmware is ready for analysis.\n\n### Changelog\n**Full Changelog**: https://github.com/jdefrancesco/MSP430X-Lens/compare/0.6.0...0.7.0",
+    "longdescription": "Adds MSP430X instruction decoding, disassembly, LLIL lifting, and a mapped raw-firmware BinaryView. Raw firmware is the primary workflow, with ELF files supported as well. MSP430F5438 and MSP430F5438A are the currently tested device profiles. The loader seeds memory regions, interrupt vectors, conservative code islands, and TI header labels so firmware is ready for analysis.\n\n### Changelog\nConservative high-bank function-cluster recovery for MSP430F5438/F5438A raw firmware, neutral `.backed_N` flash section names, and separate recovery of adjacent packed strings. Validated against the AegisNode F5438A image; all 161 automated tests pass.",
     "minimumbinaryninjaversion": 9757,
     "name": "MSP430X Lens",
-    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/ab8c6dbf-9922-48e6-8d28-64ae05319539/versions/607c8ec3-dc2c-4037-960c-385307588be8/platforms/3889/download",
-    "packageUrl": "https://extensions.binary.ninja/v1/extensions/ab8c6dbf-9922-48e6-8d28-64ae05319539/versions/607c8ec3-dc2c-4037-960c-385307588be8/platforms/3889/download?notrack=1",
+    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/ab8c6dbf-9922-48e6-8d28-64ae05319539/versions/eb28e272-38ed-4116-980f-f7f8750ffd81/platforms/3901/download",
+    "packageUrl": "https://extensions.binary.ninja/v1/extensions/ab8c6dbf-9922-48e6-8d28-64ae05319539/versions/eb28e272-38ed-4116-980f-f7f8750ffd81/platforms/3901/download?notrack=1",
     "path": "msp430xlens",
     "platforms": [
       "Darwin",
@@ -8114,16 +8153,16 @@
     "pluginmetadataversion": 2,
     "projectData": {
       "stargazers_count": 0,
-      "updated_at": "2026-08-24 18:45:47+00:00"
+      "updated_at": "2026-08-25 15:41:12+00:00"
     },
     "projectUrl": "https://github.com/jdefrancesco/MSP430X-Lens",
     "subdir": "",
     "type": [
       "architecture"
     ],
-    "version": "0.7.0",
+    "version": "0.9.0",
     "view_only": false,
-    "sha256": "0i3rlm5x47yg1gigdlp4aq3v0nm9sbn7n0cq79sqiprx5h6dv0ss"
+    "sha256": "1dqciqjd2w6amch7qqabfyflzgv60cbxkj87lg2m3bihdw6sfxx4"
   },
   {
     "api": [
@@ -8165,44 +8204,5 @@
     "version": "1.0.0",
     "view_only": false,
     "sha256": "045g8n3dpnmc1x728v0z84ia4pf5pczpr9i24kdnpy9yf6q58wdl"
-  },
-  {
-    "api": [
-      "python3"
-    ],
-    "author": "psifertex (original by lele394)",
-    "dependencies": "",
-    "description": "Browse, preview, and install themes from within Binary Ninja. Shows live linear and graph view previews before switching.",
-    "installinstructions": {},
-    "is_paid": false,
-    "lastUpdated": 1787240596,
-    "license": {
-      "name": "MIT",
-      "text": "MIT License\r\n\r\nCopyright (c) 2026 Léo BECHET\r\nCopyright (c) 2026 Jordan Wiens\r\n\r\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\r\n\r\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\r\n\r\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
-    },
-    "longdescription": "# Swatch\n\n> Color themes for Binary Ninja, with a live preview before you switch.\n\nBrowse, preview, and apply [`.bntheme`](https://docs.binary.ninja/dev/themes.html)\ncolor themes inside Binary Ninja include the themes Binary Ninja ships and ones\nfrom community repositories. Every theme renders a sample linear view and flow\ngraph in its own colors.\n\n## Preview\n\n![Swatch](https://github.com/psifertex/Swatch/blob/main/rsc/image.png?raw=true)\n\n## What it does\n\n- Lists Binary Ninja's own built-in themes\n- Lists themes from configured GitHub repositories\n- Shows themes installed locally\n- Live preview of a theme \n- Installs and applies themes directly from the UI\n- Search/filter with a quick-clear button, plus `@dark`, `@light`, `@local`\n and `@remote` keywords for filtering by brightness or availability\n\n## Storage\n\nInstalled themes are saved under Binary Ninja's\n[user folder](https://docs.binary.ninja/guide/index.html#user-folder), which is\nplatform-dependent, in the `community-themes/` subfolder — e.g. on Linux:\n\n```\n~/.binaryninja/community-themes/\n```\n\nBinary Ninja scans both `themes/` and `community-themes/` there, so themes\ninstalled by this plugin are picked up alongside any you cloned yourself.\n\nWriting your own? See [Creating Themes](https://docs.binary.ninja/dev/themes.html)\nfor the `.bntheme` file format.\n\n## Usage\n\nOpen:\n\n```\nPlugins → Swatch (Theme Picker)\n```\n\nTo report a problem, use **Plugins → Swatch (Report an Issue)**.\n\n## Official themes\n\nBinary Ninja's own themes are listed under **BUILT IN**. They ship with Binary\nNinja rather than being downloaded, so they are always available and never need\ninstalling. Their sources are open and live in the API repository:\n\nhttps://github.com/Vector35/binaryninja-api/tree/dev/themes\n\nBinary Ninja bundles those `.bntheme` files as Qt resources, which is what\nSwatch reads to preview a built-in theme without switching to it first.\n\n## Community repos\n\nThese are listed by default. Add or remove repositories under\n**Settings → Swatch → Theme Repositories**, writing each as `owner/repo`, or\n`owner/repo/path` when the themes live in a subdirectory.\n\n- Vector35 – community themes \n https://github.com/Vector35/community-themes\n\n- Catppuccin – Binary Ninja themes \n https://github.com/catppuccin/binary-ninja/tree/main/themes\n\n- Dracula – Binary Ninja theme \n https://github.com/dracula/binary-ninja\n\n- Evan Richter – Base16 Binary Ninja colors \n https://github.com/evanrichter/base16-binary-ninja\n\n- FuzzySecurity – Binary Ninja themes \n https://github.com/FuzzySecurity/BinaryNinja-Themes\n\n## Requirements\n\n- Binary Ninja (see `minimumbinaryninjaversion` in `plugin.json` for the minimum build)\n- Internet access for fetching themes\n\n\n## Credits and licensing\n\nOriginally created by [Léo BECHET (lele394)](https://github.com/lele394/Binary-Ninja-Theme-Manager)\nand published under the MIT license, which this fork continues under. Léo's\ncopyright notice is retained alongside this fork's, as MIT requires.\n\nIn August 2026 the upstream repository replaced its MIT license with terms that\ngrant no rights and restrict AI-related use of the project. This fork's history\ndoes not include that change and all code here predates it and was published\nunder MIT. If you want the upstream project under its current terms, follow the\nlink above.\n\n\n### Changelog\nrebrand to swatch, light/dark filter, add repos to settings",
-    "minimumbinaryninjaversion": 8104,
-    "name": "Swatch",
-    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/dbf35696-75d3-4f47-a8ff-1fdcefa2a979/versions/f0324dcc-e6c2-41df-a49d-f4fda5677cb9/platforms/3883/download",
-    "packageUrl": "https://extensions.binary.ninja/v1/extensions/dbf35696-75d3-4f47-a8ff-1fdcefa2a979/versions/f0324dcc-e6c2-41df-a49d-f4fda5677cb9/platforms/3883/download?notrack=1",
-    "path": "swatch",
-    "platforms": [
-      "Darwin",
-      "Linux",
-      "Windows"
-    ],
-    "pluginmetadataversion": 2,
-    "projectData": {
-      "stargazers_count": 0,
-      "updated_at": "2026-08-20 15:43:16+00:00"
-    },
-    "projectUrl": "https://github.com/psifertex/Swatch",
-    "subdir": "",
-    "type": [
-      "ui"
-    ],
-    "version": "1.1",
-    "view_only": false,
-    "sha256": "0l74lsd7kmqxg3yh7x93pqlz3qfxjlkqzg8afm7vl9kv4lm8azhy"
   }
 ]
