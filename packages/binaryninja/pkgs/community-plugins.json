@@ -65,7 +65,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 12,
+      "stargazers_count": 13,
       "updated_at": "2026-08-02 06:48:15+00:00"
     },
     "projectUrl": "https://github.com/decoderloop/rust_metadata_carver",
@@ -105,7 +105,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 0,
+      "stargazers_count": 2,
       "updated_at": "2026-09-03 07:51:10+00:00"
     },
     "projectUrl": "https://github.com/psifertex/delphinja",
@@ -116,6 +116,162 @@
     "version": "1.0.1",
     "view_only": false,
     "sha256": "0xr4dvk6c89v7z47lswa341v4b0lsq0mkdykqxkq9ph36as029cd"
+  },
+  {
+    "api": [
+      "python3"
+    ],
+    "author": "RevPanda",
+    "dependencies": "",
+    "description": "PIC16 architecture plugin for Binary Ninja",
+    "installinstructions": {},
+    "is_paid": false,
+    "lastUpdated": 1788531963,
+    "license": {
+      "name": "MIT",
+      "text": "Copyright (c) 2026 Peter Bortas\r\n\r\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\r\n\r\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\r\n\r\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
+    },
+    "longdescription": "# PIC16 architecture plugin for Binary Ninja\n\nDisassembly, control flow and LLIL lifting for the PIC16 mid-range cores\n(14-bit words) and the 12-bit baseline core, plus loaders for flat program\nmemory images that work out which core, and which part, they are looking at.\n\n| Architecture | Core | Parts |\n|---|---|---|\n| `pic16` | enhanced mid-range, 14-bit | PIC16F1xxx |\n| `pic16-classic` | classic mid-range, 14-bit | PIC16F87xA, PIC16F84A and friends |\n| `pic16-baseline` | baseline, 12-bit, 512 words, no paging | PIC16C54, PIC16C55, PIC1650, PIC1654, PIC1655 |\n| `pic16-baseline-paged` | baseline, 1024 words in two pages | PIC16C56 |\n| `pic16-baseline-banked` | baseline, 2048 words in four pages, four RAM banks | PIC16C57 |\n\nThe two mid-range architectures are dialects of one instruction set and share\nalmost all their code. The baseline ones are a **different instruction set**\nthat happens to carry the same family name, and live under `pic16arch/baseline/`;\nsee [The 12-bit baseline core](#the-12-bit-baseline-core).\n\nWritten while reverse-engineering one enhanced-core firmware image, then\ngeneralised against a corpus of 170 PIC ROM dumps from MAME, which is where\nmost of the behaviour described below was settled. The figures quoted through\nthis file come from real images.\n\n![Graph in asm mode with named symbols](https://raw.githubusercontent.com/RevPanda/binaryninja-pic16/main/README-images/PIC16-baseline-graph-asm.png)\n\n## Installing\n\nBinary Ninja loads 3rd party plugins that aren't in the plugin manager\ninventory from `~/.binaryninja/plugins` on sane systems; check\n`binaryninja.user_plugin_path()` if you are on a less sane one. Symlink\n`pic16arch` in rather than copying it, for easier management.\n\n```sh\nmkdir -p ~/.binaryninja/plugins\nln -s \"$PWD/pic16arch\" ~/.binaryninja/plugins/pic16arch\n```\n\nBinary Ninja loads plugins at startup, so restart it after adding the link or\nafter changing any file in the plugin.\n\nIf it does not work, open Binary Ninja's log window. The plugin writes a\ntraceback there when registration or image loading fails, naming what it was\ndoing at the time.\n\n## Address-space layout\n\nThe PIC16 is a Harvard machine with three spaces, none byte-addressed the way\nBinary Ninja expects. Each gets a window in Binary Ninja's single flat space:\n\n| PIC space | Binary Ninja addresses | Mapping |\n|---|---|---|\n| Program memory | `0x00000000`-`0x0000FFFF` | word address × 2 |\n| Data memory (banked RAM + SFRs) | `0x00100000`-`0x00100FFF` | linear data address |\n| Hardware call stack | `0x00200000`-`0x002000FF` | synthetic; see below |\n\n![The header the baseline loader writes over a 12-bit image](https://raw.githubusercontent.com/RevPanda/binaryninja-pic16/main/README-images/PIC16-baseline-header.png)\n\nThe data window is 12 bits wide for the enhanced core's 32 banks and 9 bits\n(`0x00100000`-`0x001001FF`) for the classic core's four, so an access computed\nfrom a bank the part does not have lands visibly outside the map.\n\nErased flash is mapped readable but not executable, and the program\nsegment is split into runs to arrange it. Otherwise a linear sweep walks into\na large erased region (every word a valid, falling-through `MOVWI`) and\nmanufactures one enormous function. In one 8K-word image that was a single\n1989-word \"function\", and it dominated analysis time. The runs it finds there\nare exactly the image's own code and blank regions:\n\n```\nword 0x0C00..0x0FFA 1018 words code\nword 0x0FFA..0x129E 676 words erased\nword 0x129E..0x1800 1378 words code\nword 0x1800..0x1FBF 1983 words erased\nword 0x1FBF..0x1FE0 33 words code\n```\n\n**Program addresses are doubled.** Word `0x0C00` in a datasheet or an MPLAB\nlisting is `0x1800` here. This is not a choice so much as the only workable\noption: a 14-bit word needs two bytes, and Binary Ninja addresses bytes. It\nhas one happy consequence: a flat image dump and an Intel HEX file for these\nparts already use exactly this layout, so nothing has to be transformed at\nload time.\n\nThe hardware stack is not addressable on the real part at all. It exists here\nonly because Binary Ninja wants a stack pointer to reason about calls with;\nthe synthetic `SP` register and its window are never touched by real code.\n\n## Advantages of IL over a plain disassembler\n\nTwo PIC16 quirks make context-free disassembly frustrating, and both are\nthings the IL can fix.\n\n**Banking.** A byte-oriented instruction carries only a 7-bit file offset; the\nrest of the data address comes from elsewhere. Disassembly cannot know the\nbank, so the text says `[BSR:0x2c]` or `[RP:0x2c]`. But the bank source lifts\nto a plain register and the address is lifted as an explicit sum, so Binary\nNinja's constant propagation resolves it. In MLIL and HLIL you get the named\nregister (`TRISC`, `SSPCON1`, `PIR1`) wherever the bank is knowable.\n\nOn the enhanced core the bank source is `BSR`, loaded outright by `MOVLB`. On\nthe classic core it is STATUS<6:5>, RP1:RP0, and `BANKSEL` sets those one bit\nat a time with `BCF`/`BSF`. So RP0, RP1 and IRP are modelled as one-bit\n*registers* rather than as bits of a STATUS byte: `BCF STATUS, RP0` then\nbecomes `RP0 = 0`, an assignment dataflow can fold, where a read-modify-write\nof a byte whose prior value is unknown would stay unknown forever. Reads and\nwrites of STATUS as a whole (the `SWAPF STATUS, W` context save every classic\nISR opens with) compose and decompose those registers, so the bank survives\nthe round trip.\n\n**Paging.** `CALL` and `GOTO` carry only PC<10:0>; the rest comes from PCLATH:\nbits 6:3 on the enhanced core, 4:3 on the classic one, which has a 13-bit PC.\nOn the enhanced core `MOVLP` loads it; the classic core has no such\ninstruction and uses `MOVLW k` / `MOVWF PCLATH`. Same treatment either way:\nthe text shows `PCLATH:0x44a`, the IL computes the full target from the\n`PCLATH` register, and dataflow turns it into a real edge and a real\ncross-reference. That is the difference between a listing that prints raw\n11-bit target values and one that says where the transfer actually goes.\n\nDataflow gets every branch a `MOVLP` reaches, which is every *cross-page*\ntransfer, because the hardware requires a `MOVLP` before one. It does not get\nan intra-page `GOTO` inside a subroutine that never loads PCLATH itself: there\nPCLATH holds whatever the caller left, and dataflow sees an unknown register.\nIn a typical application image that is most of them. One 5088-word example\nhas 274 of its 323 branches in that state.\n\n`paging.py` recovers those, and not by guessing. To have reached a function at\nword address `T` at all, the caller's `CALL`/`GOTO` must have run with the page\nbits of PCLATH set to `T`'s page; that is what selected it. So those bits are\nknown exactly at every function entry, and still hold at any branch no `MOVLP`\nreaches. The argument is about how the caller got there rather than about how\nwide the PC is, so it holds unchanged on both cores. The pass runs once\nanalysis settles, and is also available as **Plugins -> PIC16 -> Resolve paged\nbranches**.\n\nIt re-runs while it is still making progress, because each resolved branch can\nexpose code containing more of them. On the 5088-word image above it\nconverges in eight rounds and leaves two branches unresolved, both declined on\npurpose (see the guards below). That makes `_reset` go from 107 basic blocks \nto 173, one subroutine from 42 to 131 and another from 3 to 82, and a ladder \nof range comparisons decompiles as a `while` loop with a `break` instead of \na row of unresolved jumps.\n\n`CALL` gets the same treatment and needs it more often on the classic core. An\nassembler emits a page load only for a transfer that *crosses* a page, so code\nliving entirely inside one (all of a 2K part, most of an 8K one) never writes\nPCLATH at all and runs on whatever the reset left there. Those calls are\nunresolvable by dataflow and yet perfectly determined, by the same argument.\nSince a call is given no branch (an unresolved one would end the basic block\ninstead of falling through), they are found by asking the LLIL which call\ndestinations dataflow failed to fold; the callee is created and a\ncross-reference added.\n\n### The entry page, declared in the calling convention\n\nAnnotating branches one at a time gets the edges right but leaves the *calls*\nreading badly, because an annotation at a call site does not make Binary Ninja\nfold the destination, so HLIL renders the expression that computes it, and\nnests one inside the next when two calls are consecutive:\n\n```c\nPCLATH_1 = ((((arg1 & 0x18) << 9 | sub_80)(2) & 0x18) << 9 | sub_a0)();\n```\n\nSo the same inference is stated up front instead, as PCLATH's value on entry,\nin `conventions.py`. `CallingConvention` is handed the function, so the value\ncan be derived from where the function sits, which is exactly what determines\nit:\n\n```python\nimplicitly_defined_regs = [\"PCLATH\"]\n\ndef perform_get_incoming_reg_value(self, reg, func):\n if reg == \"PCLATH\" and func is not None:\n page = memory.addr_to_word(func.start) >> 11\n return ConstantRegisterValue(page << 3)\n```\n\nBinary Ninja consumes that as entry state, so constant propagation resolves\nbranches and calls alike, during analysis, with nothing added to the listing:\n\n```c\nsub_80(2);\nsub_a0();\nsub_1000();\n```\n\nOn a classic image this leaves `paging.py` with nothing to do at all. On an\nenhanced one it leaves a handful: branches and calls where a `MOVLP` on one\npath makes the page genuinely ambiguous to dataflow. Those are what the pass\nstill earns its place on.\n\nThree things about this are worth knowing:\n\n* **PCLATH is declared callee saved.** A `CALL` does not touch it (it is an\n ordinary SFR), so it changes across one only if the callee writes it and\n returns without putting it back. Code that does that, whose caller then takes\n a paged branch without reloading, is broken on hardware: it jumps into the\n callee's page. Declared caller saved instead, PCLATH goes unknown after every\n call and almost none of this works. The bank registers stay caller saved,\n because unlike PCLATH they genuinely are clobbered.\n* **The value reports PCLATH<2:0> as zero, which is not known.** Code that\n depends on those bits (a `CALLW`, or a jump table through `PCL`) has to set\n them itself, because a `CALL` does not pass them and a callee cannot inherit\n them from anywhere; that write overrides this value. Verified on a jump table\n sitting in a page's first 256 words, where zero is also the true value: the\n computed jump stays unresolved, because `W` is unknown, rather than folding to\n something wrong.\n* **The override goes on `perform_get_incoming_reg_value`**, whose own docstring\n says it is deprecated in favour of `get_incoming_reg_value`. Overriding the\n documented method does nothing: the core callback calls the deprecated one and\n nothing in the callback path calls the other. That was measured, not assumed.\n\nTwo things it refuses to do:\n\n* Only the page bits are recoverable this way. PCLATH<2:0> is not, and those\n are what `CALLW` and writes to `PCL` consume, so functions containing either\n are left alone rather than guessed at. Plenty of images contain neither.\n* A branch into erased flash means the inference was wrong or the code is\n dead, so no edge is created. This turns out to matter a lot: an erased\n word reads `0x3FFF`, which decodes as a real `MOVWI -1[FSR1]` that falls\n through.\n\nIt says what it's foing in the log window (functions examined, branches found,\nresolved, and skipped), because a silent analysis pass is very hard to tell\napart from one that is quietly doing nothing.\n\nBeyond that:\n\n* `STATUS` bits C, DC and Z are modelled as Binary Ninja flags, so\n `BTFSS STATUS, Z` decompiles as a condition rather than a memory bit test.\n* PIC's carry is *no borrow* on subtraction, the inverse of the usual\n convention. `get_flag_write_low_level_il` inverts C and DC for `SUB`/`SBB`\n so comparisons come out with the right sense.\n* `BTFSC`/`BTFSS`/`DECFSZ`/`INCFSZ` skip the next instruction rather than\n branching; they are lifted as ordinary two-way branches over it.\n* Writing `PCL` is lifted as a computed jump, which is what the PIC jump-table\n idiom (`ADDWF PCL, F`) actually is.\n* Known SFRs are given named byte variables in the data window, which is what\n makes a resolved banked access read as `TRISC` and not `*(uint8_t*)0x10018e`.\n\n## Loading an image\n\nA raw dump records neither which core it was built for nor where in program\nmemory it belongs, and Binary Ninja's Intel HEX transform drops the origin\naddress too. So the loader infers both, and offers each as a load setting.\n\n**Which core.** The two dialects share an encoding space and every opcode the\nenhanced core added sits on bits the classic one treats as don't-care, so the\nwrong choice does not fail: it disassembles cleanly into different, plausible\ninstructions. Two kinds of evidence decide it: instructions only the enhanced\ncore has (`MOVLP`, `BRA`, `MOVIW`, `LSLF`…), against writes to STATUS<7:5>,\nwhich are the classic core's bank select bits and are unimplemented on the\nenhanced one. Whichever side has more wins; a tie means the image stays inside\nthe common subset, where the two agree, and the enhanced core is the default.\n\n`MOVLB` is deliberately *not* counted as evidence: its encoding,\n`0x0020`-`0x003F`, is a classic `NOP` with don't-care bits set, so it is the\none enhanced-only instruction a genuine classic image can plausibly contain.\n\n**Where it goes.** Every `CALL`/`GOTO` whose PCLATH is knowable (from a\n`MOVLP`, or from the `MOVLW k` / `MOVWF PCLATH` pair the classic core has to\nuse instead) has a knowable absolute target. The right base is the one that\nlands the most of those on words that actually contain code rather than on\nerased flash. On an image holding an application above a bootloader that\npicks the application's own base: in one such case `0x0C00`, with 309 of its\n323 targets landing on real instructions against 266 for the runner-up.\nClassic images are usually linked at 0 and offer little to score with; with no\ntargets at all the answer is 0, which is the right answer for such an image\nanyway.\n\n**Which part.** The core variant says which *instruction set*; it does not say\nwhich silicon, and the special function registers depend on that. A PIC16F84\nread with the family's PIC16F87xA table has its EEPROM registers reported as\n`PORTD`, `PORTE`, `TRISD` and `TRISE`, and its low RAM (0x0C-0x4F, which is\ngeneral-purpose there) reported as timer and interrupt registers. This one is\n*not* inferred, because nothing in a dump says which part it was burned into.\nThe **Device** setting picks between:\n\n| Device | |\n|---|---|\n| `pic16f1xxx` | enhanced mid-range; the default for that core |\n| `pic16f87xa` | 4 banks, full peripheral set; the default for the classic core |\n| `pic16f8x` | PIC16F83/84/84A, PIC16CR83/CR84; 2 banks, EEPROM, RAM from 0x0C |\n| `pic16c62x` | PIC16C620/621/622; 2 banks, comparators at `CMCON`/`VRCON` |\n| `classic-generic` | core registers only, for a part nobody has identified |\n\n**Open with Options → Core variant / Device / Base word address** overrides\nany of them when the inference is wrong or the answer is already known.\n\nThe loader claims a file only if every 16-bit word fits in 14 bits *and* the\ncontent decodes as code with real control flow in it. The first test alone is\nnearly conclusive, but the extra ones keep it from claiming all-zero files,\nerased-flash padding and other degenerate input. If it declines a file you\nknow is PIC16, use Open with Options and pick the `PIC16` view by hand.\n\nIt also declines anything too small to judge, which is four numbers rather\nthan one: image size, live words, distinct words and transfers of control.\nThey are grouped as `image.Floors` and bound to `FLOORS` in each loader, with\na relaxed `DEBUG_FLOORS` above it for testing against images already known to\nbe PIC16, mainly small extracted Intel HEX programs. Swapping the binding\nis the whole mechanism, and the suite fails while it is swapped so it cannot\nreach a commit.\n\nEach view gets a four-line note at its entry point recording that these are\nBinary Ninja addresses rather than the part's own: the program window is the\nword address doubled, and data and stack sit in windows of their own. Binary\nNinja builds the header block above the code (type, platform, segments,\nsections) itself and exposes no way for a plugin to add to it, so the note has\nto hang off an address instead.\n\nThe entry point rather than the lowest mapped address, which is nearer that\nheader and was tried first. The lowest address is not reliably the start of\nanything: in `rockpin-pic_1650a-110` word 0 is one arm of a jump table further\ndown, so the note rendered indented inside that function's `switch` and\nwrapped by the indentation. A function start has nothing to be absorbed into.\n\nIt is written as the *function's* comment rather than a comment on an address.\nAn address comment belongs to the instruction there, and the higher ILs are\nfree to fold that instruction away (a reset vector whose body is one `goto`\nusually does), taking the comment with it. Since HLIL is where a reader\nstarts, that would be a note most readers never see. A function comment\nrenders in the header at every level. The address form remains as a fallback\nfor when analysis found no function to hang it on.\n\nIt is written once per file and never again: `memory.write_address_note()`\nrecords that it has been, in persistent metadata, so a note deleted in a\ndatabase stays deleted rather than coming back on the next load. It also\ndeclines rather than overwrite a comment already at that address. Neither\nrefusal is a failure.\n\nWord 0 of an image is its reset vector and word 4 its interrupt vector; both\nare seeded as entry points, named `_reset` and `_interrupt`. That holds for an\nimage linked at 0 and for an application sitting above a bootloader, which\ncarries its own vector pair at the front.\n\n**Padding is not code.** Long uniform runs are split out of the executable\nsegments, because both filler words disassemble happily: erased flash reads as\n`0x3FFF`, which is a valid instruction that falls through, and a dump taken\nfrom an emulator's ROM region rather than from the part is padded with zeroes,\nwhich are `NOP`s. Left executable, either one has a linear sweep manufacture a\nsingle function thousands of words long. The thresholds differ, 32 words for\nerased flash and 256 for zeroes, because zero is an instruction real code\ncontains and `0x3FFF` is not. The runs stay readable, since the part can read\nthem.\n\n### Strings in program memory\n\nA PIC16 has no data bus to its flash, so text lives in program memory one\ncharacter per 14-bit word, which means a byte-oriented string search finds\nnothing, every character being followed by a zero or a `0x34` high byte. So \nthe plugin annotates string it finds at load time and it's re-runnable from \n**PIC16 -> Annotate program-memory strings**:\n\n* a **`retlw` table**, indexed by adding to `PCL` so that calling into the\n middle of it returns that character in `W`. These are instructions and \n stay executable; the first one gets a comment saying what the run\n spells. The Sega security PICs in the test corpus answer a challenge with\n `NAOMIGDROMSYSTEM` out of one.\n* a **literal run** of bare character words, which nothing on a classic part\n can even read, there being no flash read path, so it is a signature or a\n copyright stamp rather than something the program uses. These become a named variable\n with the text as a comment.\n\nBoth are deliberately conservative.\n\n## The configuration word\n\nA dump wide enough to include it carries a configuration word: the oscillator\nmode, the watchdog, the code-protection bits, everything the part latches\nbefore the first instruction runs. It sits well past the end of program\nmemory, at word 0x2007 on the classic mid-range core and in the last slot of\na full 0x1000-word dump on the 12-bit one.\n\nIt is named `_config_word`, typed, and kept out of the executable range.\n\nThe comment reads it out:\n\n```\nconfiguration word 0x3d32: FOSC=HS WDT/WDTE=OFF PWRTE=ON BODEN/BOREN=OFF\nLVP=OFF CPD=OFF DEBUG=OFF (CP, WRT not decoded: parts in this family lay it\nout differently)\n```\n\nThe bit maps are generated from the gputils device headers, which define each\noption as an AND-mask, so the fields are derived from the assembler's own\nsymbols. That is also where the names come from: `FOSC=HS` rather than a raw \ntwo-bit field.\n\nA field is only decoded when every part in the selected family lays it out\nidentically. The loader picks a family and not a part, and the parts within\none do differ - PIC16F877A and PIC16F873 disagree about `WRT`, and the 12-bit\nparts disagree about `CP`. Those are named as undecoded rather than averaged\ninto a plausible answer. \n\nA word of all ones is reported as blank rather than decoded, because that is\nwhat an unprogrammed word and the fill in an over-large dump both read as,\nand \"watchdog enabled\" is a poor way to describe a byte nobody wrote.\n\n## The two dialects of PIC16\n\nThey share a 14-bit encoding space but are not the same instruction set, and\nwhere they disagree the disagreement is silent: nearly every word decodes to\n*something* under either reading. That is why the dialect is chosen once, at\nload time, rather than guessed per instruction.\n\n| | enhanced (`pic16`) | classic (`pic16-classic`) |\n|---|---|---|\n| Instructions | 49 | 35 |\n| Data banks | 32, selected by `BSR` (`MOVLB`) | 4, selected by STATUS RP1:RP0 (`BANKSEL`) |\n| Mirrored core registers | `0x00`-`0x0B` | `INDF`, `PCL`, `STATUS`, `FSR`, `PCLATH`, `INTCON` |\n| Indirection | `FSR0`/`FSR1`, 16-bit, with `MOVIW`/`MOVWI` | one 8-bit `FSR`, ninth bit from STATUS IRP |\n| Program counter | 15 bits, paged through PCLATH<6:3> | 13 bits, paged through PCLATH<4:3> |\n| `W` in the file space | yes, at `0x09` | no |\n\nSome specific traps, all of which the decoder handles per dialect:\n\n* `0x0020`-`0x003F` is `MOVLB k` on the enhanced core. On the classic core\n `NOP` is `00 0000 0xx0 0000`, so `0x0020`, `0x0040` and `0x0060` are `NOP`s\n and the rest of that range is undefined.\n* Classic `MOVLW` is `11 00xx kkkk kkkk` and `RETLW` is `11 01xx kkkk kkkk`.\n Those don't-care bits are exactly where the enhanced core put `MOVLP`,\n `ADDFSR`, `BRA`, `LSLF`, `LSRF` and `ASRF`. The classic decoder honours them,\n because what the silicon does is the point.\n* An erased flash word, `0x3FFF`, is a valid instruction on both: `MOVWI\n -1[FSR1]` on the enhanced core, `ADDLW 0xFF` on the classic one. Both\n fall through. See the erased-run handling above.\n* `0x01` and `0x05`-`0x09` are bank-dependent on the classic core, so `TMR0`\n and `OPTION_REG` share an offset, as do each `PORTx` and its `TRISx`.\n Resolving the bank is the difference between reading `PORTC` and `TRISC`.\n\n## The 12-bit baseline core\n\n`PIC16C5x` and the PIC165x parts that preceded them are not a third mid-range\ndialect. They are the ancestor: 12-bit words, 33 instructions, five bits of\nfile register, a two-level hardware stack and no interrupts at all. The\nresemblance is real but shallow: the six-bit opcodes of the byte-oriented\noperations are numbered exactly as the mid-range core numbers them, because the\nmid-range core is this one with `f` widened from five bits to seven and `d`\nmoved out of the way to make room.\n\n| | mid-range | baseline |\n|---|---|---|\n| Word | 14 bits | 12 bits |\n| Instructions | 35-49 | 33 |\n| `f` field | 7 bits | 5 bits |\n| Return | `RETURN`, `RETLW`, `RETFIE` | `RETLW` only |\n| Stack | 8 or 16 levels | 2 levels |\n| Interrupts | yes, vector at word 4 | none |\n| Reset vector | word 0 | last word of program memory |\n| Page select | `PCLATH` | `STATUS` PA1:PA0, on the parts that need them |\n| `GOTO` reach | 2048 words | 512 words |\n| `CALL` reach | 2048 words | 256 words, since PC<8> is forced to zero |\n| Data bank | `BSR` or STATUS RP1:RP0 | `FSR<6:5>`, and only above offset 0x10 |\n\nThree of those drive the design.\n\n**`CALL` reaches half a page.** `CALL` and a write to `PCL` both clear PC<8>,\nso a subroutine can only start in the first 256 words of its 512-word page.\nThe IL says so, which makes it a free cross-check on any inferred page.\n\n**The page bits are registers.** PA0, PA1 and PA2 are modelled as one-bit\nBinary Ninja registers rather than as bits of a `STATUS` byte, so that\n`BSF STATUS, PA0` becomes `PA0 = 1`, an outright assignment constant\npropagation can fold. A read-modify-write of an unknown `STATUS` would stay\nunknown forever. `FSR` gets the opposite treatment and stays one byte, because\nindirection through `INDF` needs the whole of it.\n\n**Paging is a property of the part too, and most parts have none.** How many\nof those three bits reach the program counter follows from how much program\nmemory the part has: none on a 512-word one, because `GOTO`'s nine bits are\nthe whole of a nine-bit program counter; PA0 on a 1024-word one; PA1:PA0 on a\n2048-word one. **PA2 selects nothing on any part in this family**: 2048 words\nis the largest there is and four pages need two bits.\n\nA bit that selects nothing is a general-purpose read/write bit of `STATUS`,\nand firmware uses it as one. One PIC16C54 dump in the corpus keeps\nflags in `STATUS<7>` and `STATUS<5>`, and returns one of them from a\nsubroutine. Modelling those as page bits anyway is not a harmless\nover-approximation: it made every `GOTO` after the `BSF` depend on a value the\nsilicon ignores, leaving ten of them unresolved, and it made the entry-page\ninference claim a constant for a caller's flag, folding live `BTFSS` and\n`BTFSC` tests to `if (false)` and `if (true)`. Both were measured on that\nimage; both are gone.\n\n**Banking is a property of the part, not the instruction.** Only the PIC16C57\nhas RAM banks, and they are the top two bits of `FSR` reaching a *direct*\naccess above offset 0x10. Emitting that term on a part without banks makes\nevery RAM access depend on a register the program never writes, so nothing\nresolves; leaving it off on a PIC16C57 silently reads bank 0 for all four.\n\nHence three architectures, picked by the loader from the device: the family\nonly ships three of the four combinations, since the one part with RAM banks\nis also the only one with four pages.\n\n### Loading a 12-bit image\n\n**Telling the cores apart** needs no heuristic. A 12-bit word cannot set bit 12\nor bit 13, and every mid-range `CALL`, `GOTO` and `RETLW` needs one of those\nset, so a baseline image contains no mid-range control flow at all. Measured\nover the corpus: of 66 baseline dumps and 101 mid-range ones, neither loader\nclaims a single file belonging to the other.\n\n**Where the program ends** has to be settled before anything else, because the\nreset vector is at the last word of it. Three signals, in order: a dump exactly\nthe size of a part is that part; a candidate size whose region holds a word too\nwide to be an instruction is the wrong size, which is what handles the several\ngambling ROMs that carry a second blob after the program; and within what\nremains, a `GOTO` sitting exactly at a candidate's last word is the reset vector.\nThat recovers the right size for 60 of the 64 corpus images it accepts. The four\nit misses are programs that do not fill their part: 147 words on a PIC16C57\nlook exactly like 147 words on a PIC16C54, and both have a `NOP` where the reset\nvector would be. It is the default for the **Device** load setting, not an\nanswer.\n\n**The device** decides program size, whether 0x07 is `PORTC` or the first byte\nof RAM, and whether `FSR<6:5>` banks: `pic16c54`, `pic16c55`, `pic16c56`,\n`pic16c57`, `pic1650a`, `pic1654s`, `pic1655`.\n\n**Padding** is split out as it is for mid-range images, with one addition:\nseveral programmers write unused space as `0x000F`, which is not a valid opcode\nat all, so a run of it is padding whatever its length. A full 0x1000-word dump\nalso carries the configuration word in its last slot, which is named rather\nthan disassembled.\n\n**Strings** are found the same way, through `RETLW` tables, but the bar is\nhigher. On this core `RETLW` is the general way to fetch *any* constant\nrather than mainly a way to hold text, so ramps and lookup tables land in the\nprintable range constantly. A run that only ever goes one way is a table, not a sentence;\nand a run confined to a narrow band of codes is a table with jitter in it. The\ncost is a short all-lower-case word, which is the conservative direction to be\nwrong in.\n\n### Hardware call depth\n\n**Plugins -> PIC16 -> Check hardware call depth** walks the call graph and\nreports paths that need more return stack than the part has. A PIC16 return\naddress goes into a fixed number of hardware registers, not into memory, and\nwhen they are full the next `CALL` overwrites the oldest: no fault, no flag,\nand nothing in the listing. The innermost return works and an outer one goes\nsomewhere the program has already been.\n\nThe 12-bit core has **two** levels, which firmware really does exhaust. The\nclassic mid-range has eight and the enhanced sixteen, and an interrupt costs\none on top of whatever it interrupted.\n\nIt reports the deepest path it found even when nothing is over the limit,\nbecause \"within the limits\" on its own cannot be told from the walk having\nfound nothing at all.\n\nTwo things bound what it can say. A call through a computed destination\n(the `MOVWF PCL` thunk this core uses for its missing `CALLW`) carries no\nedge, so depth past it is invisible and the answer is a **floor rather than a\ntotal**.\nAnd it is not run automatically, because the graph is only complete once the\npaged-transfer passes have finished and you have resolved whatever they\ndeclined. A path over the limit is not proof of a bug either: it is reached\nonly if the program takes it. The finding is that the path exists.\n\nThe count of roots it walks from is functions nothing calls, which on a PIC16\nis mostly `RETLW` table entries rather than ways into the program:\n`kickgoal-pic16c57` has 155 of them and one reset vector.\n\n## Intrinsics\n\nFour instructions do something the IL has no way to express: they act on the\nwatchdog, on the core's power state, or on a latch that is not memory and not\na register the program can read. Lifting those as arithmetic would be\ninventing, and lifting them as nothing would be worse, because you would\nnever learn the instruction was there. They become intrinsics, which is Binary\nNinja's way of saying \"this happens, and its effect is outside what I model\".\n\n| Intrinsic | Instruction | What the silicon does |\n|---|---|---|\n| `sleep()` | `SLEEP` | Stops the oscillator and waits for a reset or a wake condition. Also clears the watchdog and its prescaler. |\n| `clrwdt()` | `CLRWDT` | Restarts the watchdog timer and its prescaler, which is how a program says it is still alive. |\n| `option(k)` | `OPTION` | 12-bit core only. Writes W to `OPTION`: the timer source and edge, the prescaler and what it is assigned to, and the port B pull-ups. |\n| `tris(k)` | `TRIS f` | 12-bit core only. Writes W to the tristate latch for port `f`. A zero bit makes that pin an output, a one bit an input, so `tris(0xff)` is \"all inputs\". |\n\nNone of them affects control flow, so a `SLEEP` falls through in the IL as it\ndoes in the listing. The part has stopped; Binary Ninja carries on reading.\n\n**`OPTION` and `TRIS` are intrinsics on one core and not the other**, which\nis a fact about the silicon rather than an inconsistency.\n\nOn the 12-bit core the destinations are not addressable. There is no file\noffset for `OPTION` or for a tristate latch, and no instruction reads either\nback, so lifting `TRIS 6` as `TRISB = W` makes it a store nothing ever loads\nand HLIL removes it as dead. Measured on `kickgoal-pic16c57`: the port setup\nat the top of the image, four such writes, vanished from the decompilation\nentirely. As intrinsics they survive, and they carry both halves of what\nhappened, so MLIL reads `TRISB = tris(0xff)` against a real architecture\nregister.\n\nThe mid-range cores *map* them. `OPTION_REG` and `TRISA`/`TRISB`/`TRISC` have\nfile offsets that ordinary instructions use, so the legacy `OPTION` and\n`TRIS` are simply stores to them, and MLIL reads `[&OPTION_REG].b = W`. That\nis better than an intrinsic on every count: the address already has its name\nfrom the loader, the write joins dataflow, and it is what the hardware does.\nBank-mirrored registers are written at the lowest of their addresses.\n\nNothing in the corpus exercises that path: `TRIS` and `OPTION`\nare legacy on the mid-range parts and the firmware there sets a bank and\nwrites `TRISB` directly instead. The two decode hits in the 101 mid-range\nimages are both inside a string table.\n\nWhat is not modelled is the state these leave behind: `nPD` and `nTO` in\n`STATUS` record whether the part woke from sleep or was reset by the watchdog,\nand nothing here sets them. They have no bearing on control flow, which is why\nthey are absent rather than wrong.\n\n## Accuracy notes\n\nPeripheral registers are typed `volatile`, so two reads of a port stay two\nreads rather than folding into one. The core registers are deliberately not:\nthey are processor state rather than hardware, and paged-transfer resolution\nworks by constant-folding those.\n\nThe mirrored core registers are architectural and always right. Everything\nelse in `sfr.py` belongs to a *part*, and the default tables are only the most\ncommon member of each family, PIC16F1xxx and PIC16F877A. Microchip keeps\nperipheral addresses stable for the peripherals a part actually has, but a\ngiven device populates some and not others, and what it does not populate is\noften RAM. Set the **Device** load setting if you know which part it is;\n`classic-generic` names only what is architectural. Either way, **treat a name\noutside the core block as a strong hint, not as proof**, and check the\ndatasheet for the specific part before building an argument on it.\n\nNot modelled:\n\n* the enhanced core's FSR windows at `0x2000` (linear data memory) and\n `0x8000` (program memory reads). Indirect accesses through those read as an\n access past the end of data memory rather than silently landing on the wrong\n byte.\n* `SLEEP`, `CLRWDT`, `OPTION` and `TRIS`, which are emitted as intrinsics.\n Opaque rather than wrong, and see [Intrinsics](#intrinsics) for what each\n one means.\n* the `nPD` and `nTO` bits of `STATUS`, which have no bearing on control flow.\n\n## Attributions\n\nSome facts about PIC processors, in particular the config bits as used\nin config_bits.py are extracted from the \n[GNU PIC Utilities](https://gputils.sourceforge.io/) headers. As facts they \nare not copyrightable but my thanks goes out to having them collected in\nsuch a convenient package.\n\n\n### Changelog\nFix types in plugin.json",
+    "minimumbinaryninjaversion": 3164,
+    "name": "PIC16",
+    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/1998bab5-a5c9-4718-8c5e-afa55bdee334/versions/eefa923a-fdfc-48cb-a8b3-5430129350fe/platforms/3937/download",
+    "packageUrl": "https://extensions.binary.ninja/v1/extensions/1998bab5-a5c9-4718-8c5e-afa55bdee334/versions/eefa923a-fdfc-48cb-a8b3-5430129350fe/platforms/3937/download?notrack=1",
+    "path": "pic16",
+    "platforms": [
+      "Darwin",
+      "Linux",
+      "Windows"
+    ],
+    "pluginmetadataversion": 2,
+    "projectData": {
+      "stargazers_count": 0,
+      "updated_at": "2026-09-04 14:26:03+00:00"
+    },
+    "projectUrl": "https://github.com/RevPanda/binaryninja-pic16",
+    "subdir": "",
+    "type": [
+      "architecture"
+    ],
+    "version": "1.6.5",
+    "view_only": false,
+    "sha256": "0l60q25dqk180p0pghkx7yh24fama95w03zfd9pijqb1dfzq7f31"
+  },
+  {
+    "api": [
+      "python3"
+    ],
+    "author": "Lukas Arnold",
+    "dependencies": "",
+    "description": "Provides container transforms for firmware in Apple's FTAB format.",
+    "installinstructions": {},
+    "is_paid": false,
+    "lastUpdated": 1788964808,
+    "license": {
+      "name": "MIT",
+      "text": "Copyright (c) 2026 Lukas Arnold\r\n\r\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\r\n\r\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\r\n\r\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
+    },
+    "longdescription": "# FTAB Container Transform\nAuthor: **Lukas Arnold**\n\n_Provides container transforms for firmware in Apple's FTAB format._\n\n## Description:\nThis plugin leverages the [Container](https://binary.ninja/2026/03/31/container-transforms.html) [Transform API](https://docs.binary.ninja/dev/containertransforms.html) to extract members from Apple's custom [firmware archive format FTAB](https://theapplewiki.com/wiki/FTAB_File_Format) directly in [Binary Ninja](https://binary.ninja/).\n\n![Binary Ninja's Container for FTAB files with plugin installed](./assets/BinjaContainerBrowser.png)\n\n## License\n\nThis plugin is released under an [MIT license](./license).\n\n\n### Changelog\nInitial release",
+    "minimumbinaryninjaversion": 10601,
+    "name": "FTAB Container Transform",
+    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/acee6155-edaa-4929-889e-22a40b89f6ad/versions/3a932e1c-bdac-4d95-b4bb-25f1f4ac75bf/platforms/3943/download",
+    "packageUrl": "https://extensions.binary.ninja/v1/extensions/acee6155-edaa-4929-889e-22a40b89f6ad/versions/3a932e1c-bdac-4d95-b4bb-25f1f4ac75bf/platforms/3943/download?notrack=1",
+    "path": "ftabtransform",
+    "platforms": [
+      "Darwin",
+      "Linux",
+      "Windows"
+    ],
+    "pluginmetadataversion": 2,
+    "projectData": {
+      "stargazers_count": 0,
+      "updated_at": "2026-09-09 14:40:08+00:00"
+    },
+    "projectUrl": "https://github.com/lukbukkit/ftab-transform",
+    "subdir": "",
+    "type": [
+      "binaryview"
+    ],
+    "version": "1.0.0",
+    "view_only": false,
+    "sha256": "0ibz4xj75524pi8vwd9r161rsc9vw7wg7a5c0x8fd48hiab8fyg9"
+  },
+  {
+    "api": [
+      "python3"
+    ],
+    "author": "Joey DeFrancesco",
+    "dependencies": "",
+    "description": "Helper plugin for finding strings that are more likely to matter during reverse engineering.",
+    "installinstructions": {},
+    "is_paid": false,
+    "lastUpdated": 1787094153,
+    "license": {
+      "name": "MIT",
+      "text": "MIT License\r\n\r\nCopyright (c) 2025 Joey DeFrancesco\r\n\r\nPermission is hereby granted, free of charge, to any person obtaining a copy\r\nof this software and associated documentation files (the \"Software\"), to deal\r\nin the Software without restriction, including without limitation the rights\r\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\r\ncopies of the Software, and to permit persons to whom the Software is\r\nfurnished to do so, subject to the following conditions:\r\n\r\nThe above copyright notice and this permission notice shall be included in all\r\ncopies or substantial portions of the Software.\r\n\r\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\r\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\r\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\r\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\r\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\r\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\r\nSOFTWARE."
+    },
+    "longdescription": "Scores discovered Binary Ninja strings, highlights code references to high-confidence strings, and reports content that looks semantically meaningful.\n\n### Changelog\nInitial public release of BinjaString.\\n\\n- Scores Binary Ninja strings for reverse-engineering relevance.\\n- Reports and annotates high-confidence strings.\\n- Highlights code references to notable findings.\\n- Includes noise suppression for common string-analysis false positives.",
+    "minimumbinaryninjaversion": 3164,
+    "name": "BinjaString",
+    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/83ad553e-4022-4fee-8c50-febfbaeab807/versions/67d4d0b9-bf6e-47e6-8894-ba16c66b8d96/platforms/3949/download",
+    "packageUrl": "https://extensions.binary.ninja/v1/extensions/83ad553e-4022-4fee-8c50-febfbaeab807/versions/67d4d0b9-bf6e-47e6-8894-ba16c66b8d96/platforms/3949/download?notrack=1",
+    "path": "binjastring",
+    "platforms": [
+      "Darwin",
+      "Linux",
+      "Windows"
+    ],
+    "pluginmetadataversion": 2,
+    "projectData": {
+      "stargazers_count": 0,
+      "updated_at": "2026-08-18 23:02:33+00:00"
+    },
+    "projectUrl": "https://github.com/jdefrancesco/BinjaString",
+    "subdir": "",
+    "type": [
+      "helper"
+    ],
+    "version": "0.1.0",
+    "view_only": false,
+    "sha256": "08175fd773i57bvgwc4c93ls88136dfvdg11qvjld1k27iwcd56p"
+  },
+  {
+    "api": [
+      "python3"
+    ],
+    "author": "NicoleFaye",
+    "dependencies": "",
+    "description": "A static, Narly/checksec-style exploit-mitigation reporter for Binary Ninja.",
+    "installinstructions": {},
+    "is_paid": false,
+    "lastUpdated": 1787638493,
+    "license": {
+      "name": "MIT",
+      "text": "MIT License\r\n\r\nCopyright (c) 2026 Nicole\r\n\r\nPermission is hereby granted, free of charge, to any person obtaining a copy\r\nof this software and associated documentation files (the \"Software\"), to deal\r\nin the Software without restriction, including without limitation the rights\r\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\r\ncopies of the Software, and to permit persons to whom the Software is\r\nfurnished to do so, subject to the following conditions:\r\n\r\nThe above copyright notice and this permission notice shall be included in all\r\ncopies or substantial portions of the Software.\r\n\r\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\r\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\r\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\r\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\r\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\r\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\r\nSOFTWARE."
+    },
+    "longdescription": "Adds a 'Generate CheckSec Report' command that statically parses the loaded PE's headers and load-config directory to report exploit mitigation status: ASLR/Dynamic Base, High Entropy VA, DEP/NX, SafeSEH, GS (heuristic), Control Flow Guard, Force Integrity, AppContainer, and Authenticode signature presence. Inspired by the classic WinDbg 'narly' extension, but works statically against the binary Binary Ninja already has loaded. No debugger session required.\n\n### Changelog\nInitial Release",
+    "minimumbinaryninjaversion": 9757,
+    "name": "CheckSecBN",
+    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/2ed9629c-e38f-4f0c-ad72-4e5290af85a6/versions/bd930283-4430-472d-a63c-9c26e36d1044/platforms/3955/download",
+    "packageUrl": "https://extensions.binary.ninja/v1/extensions/2ed9629c-e38f-4f0c-ad72-4e5290af85a6/versions/bd930283-4430-472d-a63c-9c26e36d1044/platforms/3955/download?notrack=1",
+    "path": "checksecbn",
+    "platforms": [
+      "Darwin",
+      "Linux",
+      "Windows"
+    ],
+    "pluginmetadataversion": 2,
+    "projectData": {
+      "stargazers_count": 0,
+      "updated_at": "2026-08-25 06:14:53+00:00"
+    },
+    "projectUrl": "https://github.com/NicoleFaye/CheckSecBN",
+    "subdir": "",
+    "type": [
+      "helper"
+    ],
+    "version": "1.0.0",
+    "view_only": false,
+    "sha256": "0l2xg1zcvc7az6mr40ak7f7wxavai836g8fmnx2vlk9dqvg7bb4q"
   },
   {
     "api": [
@@ -225,7 +381,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 47,
+      "stargazers_count": 48,
       "updated_at": "2024-07-28 21:40:57+00:00"
     },
     "projectUrl": "https://github.com/ergrelet/themida-unmutate-bn",
@@ -658,7 +814,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 504,
+      "stargazers_count": 503,
       "updated_at": "2025-01-16 22:23:23+00:00"
     },
     "projectUrl": "https://github.com/junron/auto-enum",
@@ -736,7 +892,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 20,
+      "stargazers_count": 21,
       "updated_at": "2024-09-19 11:36:02+00:00"
     },
     "projectUrl": "https://github.com/computerman00/BinaryNinja-PSVitaLoader",
@@ -1297,7 +1453,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 1130,
+      "stargazers_count": 1133,
       "updated_at": "2026-05-20 11:23:43+00:00"
     },
     "projectUrl": "https://github.com/mrphrazer/reverser_ai",
@@ -1414,7 +1570,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 88,
+      "stargazers_count": 87,
       "updated_at": "2026-01-03 02:38:35+00:00"
     },
     "projectUrl": "https://github.com/x64dbg/x64dbgbinja",
@@ -1809,7 +1965,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 26,
+      "stargazers_count": 27,
       "updated_at": "2026-01-11 22:46:23+00:00"
     },
     "projectUrl": "https://github.com/cxiao/rust_string_slicer",
@@ -1891,7 +2047,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 8,
+      "stargazers_count": 9,
       "updated_at": "2024-07-18 07:28:40+00:00"
     },
     "projectUrl": "https://github.com/xusheng6/binja-GoReSym",
@@ -2125,7 +2281,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 745,
+      "stargazers_count": 746,
       "updated_at": "2026-06-07 16:55:58+00:00"
     },
     "projectUrl": "https://github.com/binsync/binsync",
@@ -2520,7 +2676,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 855,
+      "stargazers_count": 853,
       "updated_at": "2022-11-03 17:37:14+00:00"
     },
     "projectUrl": "https://github.com/crytic/ethersplay",
@@ -3231,7 +3387,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 2382,
+      "stargazers_count": 2385,
       "updated_at": "2022-01-21 23:58:37+00:00"
     },
     "projectUrl": "https://github.com/bootleg/ret-sync",
@@ -3819,7 +3975,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 676,
+      "stargazers_count": 677,
       "updated_at": "2026-05-20 14:19:13+00:00"
     },
     "projectUrl": "https://github.com/mrphrazer/obfuscation_detection",
@@ -5927,7 +6083,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 357,
+      "stargazers_count": 356,
       "updated_at": "2024-02-24 15:43:49+00:00"
     },
     "projectUrl": "https://github.com/borzacchiello/seninja",
@@ -6006,7 +6162,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 72,
+      "stargazers_count": 73,
       "updated_at": "2023-09-22 09:33:06+00:00"
     },
     "projectUrl": "https://github.com/Rami114/cryptoscan",
@@ -6321,7 +6477,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 47,
+      "stargazers_count": 49,
       "updated_at": "2025-05-11 07:32:17+00:00"
     },
     "projectUrl": "https://github.com/MCPPhalanx/binaryninja-mcp",
@@ -6400,7 +6556,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 3,
+      "stargazers_count": 4,
       "updated_at": "2025-09-26 15:35:40+00:00"
     },
     "projectUrl": "https://github.com/psifertex/translation-plugin",
@@ -6639,7 +6795,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 672,
+      "stargazers_count": 674,
       "updated_at": "2026-06-15 13:51:10+00:00"
     },
     "projectUrl": "https://github.com/buzzer-re/Rikugan/",
@@ -7357,7 +7513,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 91,
+      "stargazers_count": 93,
       "updated_at": "2026-08-18 14:25:38+00:00"
     },
     "projectUrl": "https://github.com/matteyeux/binja-diff/",
@@ -7913,7 +8069,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 256,
+      "stargazers_count": 255,
       "updated_at": "2026-05-20 12:00:42+00:00"
     },
     "projectUrl": "https://github.com/mrphrazer/obfuscation_analysis",
