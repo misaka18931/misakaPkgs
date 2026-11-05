@@ -3,6 +3,444 @@
     "api": [
       "python3"
     ],
+    "author": "Jason Tang",
+    "dependencies": "mcp==1.23.3\nanyio>=4.0.0\nhypercorn>=0.16.0\npydantic>=2.0.0\npydantic-settings>=2.0.0",
+    "description": "Comprehensive MCP server for Binary Ninja with dual transport support (SSE and STDIO)",
+    "installinstructions": {},
+    "is_paid": false,
+    "lastUpdated": 1788199591,
+    "license": {
+      "name": "MIT",
+      "text": "Copyright (c) 2025 Jason Tang\r\n\r\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\r\n\r\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\r\n\r\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
+    },
+    "longdescription": "# BinAssistMCP\n\n> Comprehensive Model Context Protocol (MCP) server for Binary Ninja with AI-powered reverse engineering capabilities\n\n## Summary\n\nBinAssistMCP is a powerful bridge between Binary Ninja and Large Language Models (LLMs) like Claude, providing comprehensive reverse engineering tools through the Model Context Protocol (MCP). It enables AI-assisted binary analysis by exposing Binary Ninja's advanced capabilities through Server-Sent Events (SSE) and Streamable HTTP transports.\n\n### Key Features\n\n- **MCP 2025-11-25 Compliant**: Full support for tool annotations, resources, and prompts\n- **Dual Transport Support**: SSE (Server-Sent Events) and Streamable HTTP transports\n- **45 Consolidated Tools**: Streamlined Binary Ninja API wrapper with unified tool design\n- **8 MCP Resources**: Browsable, cacheable binary metadata\n- **7 Guided Prompts**: Pre-built workflows for common reverse engineering tasks\n- **Multi-Binary Sessions**: Concurrent analysis of multiple binaries with intelligent context management\n- **Context-Rich Code Output**: Function signatures and Binary Ninja comments are embedded in code results\n- **Analysis-Safe Queries**: Code retrieval uses already-loaded IL and never forces global reanalysis\n- **Session-Independent Discovery**: Direct tool calls discover open Binary Ninja views without requiring a prior listing call\n- **Nonblocking Binary Opens**: Large binaries and `.bndb` databases open asynchronously with pollable operation status\n- **Thread-Safe**: RLock-based synchronization for concurrent access\n- **Auto-Integration**: Seamless Binary Ninja plugin with automatic startup capabilities\n\n### Use Cases\n\n- **AI-Assisted Reverse Engineering**: Leverage LLMs for intelligent code analysis and documentation\n- **Protocol Analysis**: Trace network data flows and reconstruct protocol structures\n- **Vulnerability Research**: Systematic security audits with guided workflows\n- **Automated Binary Analysis**: Script complex analysis workflows with natural language\n- **Code Understanding**: Generate comprehensive documentation and explanations\n\n---\n\n## Architecture\n\n```\nsrc/binassist_mcp/\n├── server.py # FastMCP server - SSE/Streamable HTTP transport, tool registration\n├── tools.py # Binary Ninja API wrapper - 45 MCP tools\n├── plugin.py # Binary Ninja plugin integration\n├── context.py # Thread-safe multi-binary session management\n├── config.py # Pydantic configuration with Binary Ninja settings\n├── prompts.py # 7 guided workflow prompts\n├── resources.py # 8 MCP resource definitions\n├── cache.py # Cache primitives (not currently connected to MCP tools)\n├── tasks.py # Task lifecycle support (tool dispatch is not yet implemented)\n├── logging.py # Binary Ninja logging integration\n└── utils.py # Utility functions\n\n__init__.py # Plugin entry point (root level)\n```\n\n---\n\n## Tools (45 Total)\n\nBinAssistMCP provides 45 tools organized into functional categories. Tools include MCP annotations (`readOnlyHint`, `idempotentHint`) to help clients make informed decisions.\n\n### Binary Management\n| Tool | Description |\n|------|-------------|\n| `list_binaries` | Synchronize with Binary Ninja and list all loaded binary files |\n| `get_binary_info` | Check analysis status and metadata |\n| `get_binary_status` | Poll a queued open by operation ID, path, or name and report analysis progress |\n| `open_binary` | Queue a nonblocking binary or `.bndb` open; raw binaries require a destination `bndb_path` |\n| `update_analysis_and_wait` | Force analysis update and wait for completion |\n| `export_program` | Export the patched binary or Binary Ninja database to disk |\n\nBy default, `open_binary` validates its paths, schedules the Binary Ninja open, and immediately returns an `operation_id` with `status=\"opening\"`. Poll `get_binary_status(operation_id)` until it reports `ready` or `failed`. When ready, its `name` field is the final context name to pass to analysis tools. Concurrent requests for the same path reuse the active operation. Set `wait_for_analysis=true` only when legacy blocking behavior is explicitly required.\n\n### Code Analysis (Consolidated)\n| Tool | Description |\n|------|-------------|\n| `get_code` | Read analysis-safe code with signatures and comments; supports `decompile`, `hlil`, `mlil`, `llil`, `disasm`, and `pseudo_c` |\n| `get_function_low_level_il` | Get Low-Level IL for a function |\n| `get_function_signature` | Generate the native masked byte signature for a function |\n| `analyze_function` | Comprehensive function analysis with control flow and complexity metrics |\n| `get_basic_blocks` | Get basic block information for control flow analysis |\n| `get_function_stack_layout` | Get stack frame layout with variable offsets |\n\n#### `get_code` behavior\n\n`get_code` is a read-only query. It does not clear `analysis_skipped`, request IL generation, or run global analysis. For `format=\"decompile\"`, it returns already-loaded HLIL when available, then falls back through MLIL and LLIL to instruction-aligned disassembly. Use `update_analysis_and_wait` explicitly when fresh analysis is desired.\n\nThe `code` string starts with the current function signature and includes function-level and instruction-level Binary Ninja comments. The response contains:\n\n- `function` and `address`: resolved function identity\n- `format`: requested format\n- `actual_format`: representation actually returned, or `null` when an explicitly requested IL is unavailable\n- `fallback_used`: whether `decompile` used a lower-level representation\n- `code`: rendered code, signature, and comments\n- `note`: present when a fallback explains why and what was returned\n\n### Cross-References (Consolidated)\n| Tool | Description |\n|------|-------------|\n| `xrefs` | Unified cross-references with `direction` set to `to`, `from`, or `both`; optionally includes call relationships |\n\n### Comments (Consolidated)\n| Tool | Description |\n|------|-------------|\n| `comments` | **Unified comment management** - actions: `get`, `set`, `list`, `remove`, `set_function` |\n\n### Variables (Consolidated)\n| Tool | Description |\n|------|-------------|\n| `variables` | **Unified variable management** - actions: `list`, `create`, `rename`, `set_type`; `rename` supports local/global via `scope` |\n\n### Types (Consolidated)\n| Tool | Description |\n|------|-------------|\n| `types` | **Unified type management** - actions: `create`, `create_enum`, `create_typedef`, `create_class`, `add_member`, `info`, `list` |\n| `get_classes` | List all classes and structures |\n\n### Function Discovery\n| Tool | Description |\n|------|-------------|\n| `get_functions` | List all functions with metadata |\n| `search_functions_by_name` | Find functions by name pattern |\n| `get_functions_advanced` | Advanced filtering by size, complexity, parameters |\n| `search_functions_advanced` | Multi-target search (name, comments, calls, variables) |\n| `get_function_statistics` | Comprehensive statistics for all functions |\n\n### Symbol Management\n| Tool | Description |\n|------|-------------|\n| `rename_symbol` | Rename functions and data variables |\n| `batch_rename` | Rename multiple symbols in one operation |\n| `get_namespaces` | List namespaces and symbol organization |\n\n### Binary Information\n| Tool | Description |\n|------|-------------|\n| `get_imports` | Import table grouped by module |\n| `get_exports` | Export table with symbol information |\n| `get_strings` | Paginated string extraction |\n| `search_strings` | Search strings by pattern |\n| `get_segments` | Memory segment layout |\n| `get_sections` | Binary section information |\n| `get_entry_points` | List all binary entry points |\n\n### Data Analysis\n| Tool | Description |\n|------|-------------|\n| `create_data_var` | Define data variables at addresses |\n| `get_data_vars` | List all defined data variables |\n| `get_data_at` | Read and analyze raw data |\n| `search_bytes` | Search for byte patterns in binary |\n\n### Patching\n| Tool | Description |\n|------|-------------|\n| `patch_bytes` | Patch raw bytes in the binary at an address |\n| `assemble_code` | Assemble instruction text at an address and optionally patch it |\n\n### Navigation & Bookmarks\n| Tool | Description |\n|------|-------------|\n| `get_current_address` | Get current cursor position with context |\n| `get_current_function` | Identify function at current address |\n| `bookmarks` | **Unified bookmark management** - actions: `list`, `set`, `remove` |\n\n### Task Management (Experimental)\n| Tool | Description |\n|------|-------------|\n| `start_task` | Create a placeholder background task record; `tool_name` dispatch is not implemented yet |\n| `get_task_status` | Check status of async operations |\n| `list_tasks` | List all pending/running tasks |\n| `cancel_task` | Cancel a running task |\n\nThese APIs currently exercise task lifecycle management only. They do not execute the named MCP tool in the background.\n\n---\n\n## MCP Resources (8 Total)\n\nResources provide browsable, cacheable data that clients can access without tool calls.\n\n| URI Pattern | Description |\n|-------------|-------------|\n| `binassist://{filename}/triage_summary` | Complete binary overview |\n| `binassist://{filename}/functions` | All functions with metadata |\n| `binassist://{filename}/imports` | Import table |\n| `binassist://{filename}/exports` | Export table |\n| `binassist://{filename}/strings` | String table |\n| `binja://{filename}/info` | Binary metadata (arch, platform, entry point) |\n| `binja://{filename}/segments` | Memory segments with permissions |\n| `binja://{filename}/sections` | Binary sections |\n\n---\n\n## MCP Prompts (7 Total)\n\nPre-built prompts guide LLMs through structured analysis workflows.\n\n| Prompt | Arguments | Description |\n|--------|-----------|-------------|\n| `analyze_function` | `function_name`, `filename` | Comprehensive function analysis workflow |\n| `identify_vulnerability` | `function_name`, `filename` | Security audit checklist (memory safety, input validation, crypto) |\n| `document_function` | `function_name`, `filename` | Generate Doxygen-style documentation |\n| `trace_data_flow` | `address`, `filename` | Track data dependencies and taint propagation |\n| `compare_functions` | `func1`, `func2`, `filename` | Diff two functions for similarity analysis |\n| `reverse_engineer_struct` | `address`, `filename` | Recover structure definitions from usage patterns |\n| `trace_network_data` | `filename` | Trace POSIX/Winsock send/recv for protocol analysis |\n\n### Example: Network Protocol Analysis\n\nThe `trace_network_data` prompt guides analysis of network communication:\n\n1. **Identify Network Functions**: Finds POSIX (`send`/`recv`/`sendto`/`recvfrom`) and Winsock (`WSASend`/`WSARecv`) calls\n2. **Trace Call Stacks**: Maps application handlers down to network I/O\n3. **Analyze Buffers**: Identifies protocol structures (headers, length fields, TLV encoding)\n4. **Reconstruct Protocols**: Generates C struct definitions for message formats\n5. **Security Assessment**: Checks for buffer overflows, integer issues, information disclosure\n\n---\n\n## Installation\n\n### Prerequisites\n\n- **Binary Ninja**: Version 5000 or higher\n- **Python**: 3.10+ (typically bundled with Binary Ninja and required by the pinned MCP SDK)\n- **Platform**: Windows, macOS, or Linux\n\nNOTE: Windows users should start with: [BinAssistMCP on Windows](binassistmcp-on-windows.md)\n\n### Option 1: Binary Ninja Plugin Manager (Recommended)\n\n1. Open Binary Ninja\n2. Navigate to **Tools** → **Manage Plugins**\n3. Search for \"BinAssistMCP\"\n4. Click **Install**\n5. Restart Binary Ninja\n\n### Option 2: Manual Installation\n\n```bash\n# Clone the repository\ngit clone https://github.com/symgraph/BinAssistMCP.git\ncd BinAssistMCP\n\n# Install dependencies\npip install -r requirements.txt\n```\n\nCopy to your Binary Ninja plugins directory:\n\n| Platform | Path |\n|----------|------|\n| Windows | `%APPDATA%\\Binary Ninja\\plugins\\` |\n| macOS | `~/Library/Application Support/Binary Ninja/plugins/` |\n| Linux | `~/.binaryninja/plugins/` |\n\n---\n\n## Configuration\n\n### Binary Ninja Settings\n\nOpen **Edit** → **Preferences** → **binassistmcp**:\n\n| Setting | Default | Description |\n|---------|---------|-------------|\n| `server.host` | `localhost` | Server bind address |\n| `server.port` | `8000` | Server port |\n| `server.transport` | `streamablehttp` | Transport: `streamablehttp` or `sse` |\n| `binary.max_binaries` | `10` | Maximum concurrent binaries |\n| `plugin.auto_startup` | `true` | Auto-start server on file load |\n\n### Environment Variables\n\n```bash\nexport BINASSISTMCP_SERVER__HOST=localhost\nexport BINASSISTMCP_SERVER__PORT=8000\nexport BINASSISTMCP_SERVER__TRANSPORT=streamablehttp\nexport BINASSISTMCP_BINARY__MAX_BINARIES=10\n```\n\n---\n\n## Usage\n\n### Starting the Server\n\n**Via Binary Ninja Menu:**\n1. **Tools** → **BinAssistMCP** → **Start Server**\n2. Check log panel for: `BinAssistMCP server started on http://localhost:8000`\n\n**Auto-Startup:**\nServer starts automatically when Binary Ninja loads a file (configurable).\n\n### Connecting MCP Clients\n\n**Streamable HTTP (Default):**\n```\nhttp://localhost:8000/mcp\n```\n\n**Server-Sent Events:**\n```\nhttp://localhost:8000/sse\n```\n\n### Claude Desktop Configuration\n\nAdd to your Claude Desktop MCP configuration (`claude_desktop_config.json`):\n\n```json\n{\n \"mcpServers\": {\n \"binassist\": {\n \"url\": \"http://localhost:8000/mcp\"\n }\n }\n}\n```\n\n---\n\n## Integration Examples\n\nMost binary-specific tools require the context name in `filename`. `list_binaries` returns these names, but it is not an initialization requirement: direct filename-based calls refresh the context from Binary Ninja automatically when necessary.\n\n### Basic Function Analysis\n```\nUser: \"Analyze the main function and explain what it does\"\n\nClaude uses:\n1. list_binaries() - obtain the context filename\n2. get_functions(filename='sample.bndb') - find main\n3. get_code(filename='sample.bndb', function_name_or_address='main', format='decompile')\n4. xrefs(filename='sample.bndb', address_or_name='main', direction='from')\n5. analyze_function(filename='sample.bndb', function_name_or_address='main')\n```\n\n### Vulnerability Research\n```\nUser: \"Find buffer overflow vulnerabilities in input handling functions\"\n\nClaude uses:\n1. search_functions_advanced(filename='sample.bndb', search_term='strcpy', search_in='calls')\n2. get_code(filename='sample.bndb', function_name_or_address='handler', format='decompile')\n3. variables(filename='sample.bndb', action='list', function_name_or_address='handler')\n4. comments(filename='sample.bndb', action='set', address='0x401000', text='Unchecked copy')\n```\n\n### Protocol Reverse Engineering\n```\nUser: \"Analyze the network protocol used by this binary\"\n\nClaude uses the trace_network_data prompt:\n1. Identifies send/recv call sites\n2. Traces data flow from handlers to network I/O\n3. Reconstructs message structures\n4. Checks for network vulnerabilities\n```\n\n---\n\n## Troubleshooting\n\n### Server Issues\n\n| Problem | Solution |\n|---------|----------|\n| Server won't start | Check port 8000 availability, verify dependencies |\n| Connection refused | Ensure server is running, check firewall settings |\n| A requested IL is unavailable | Run `update_analysis_and_wait`, then retry `get_code` |\n| Binary name is rejected | Call `list_binaries` and use the returned context name |\n\n### Performance\n\n- **Memory usage**: Reduce `max_binaries` setting\n- **Code retrieval**: `get_code` returns loaded analysis immediately and falls back rather than triggering analysis\n\n### Logs\n\nCheck Binary Ninja's Log panel for detailed error messages.\n\n---\n\n## Contributing\n\n1. Fork the repository\n2. Create a feature branch\n3. Follow existing code patterns (Pydantic models, type hints, docstrings)\n4. Test with multiple binary types\n5. Submit a pull request\n\n---\n\n## License\n\nThis project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.\n\n\n### Changelog\nBinAssistMCP 2.11.0 prevents large binaries and BNDB databases from blocking MCP requests during loading.\r\nHighlights:\r\n- Asynchronous binary and BNDB opening\r\n- New get_binary_status tool for polling progress\r\n- Operation tracking across MCP sessions\r\n- Duplicate-open suppression\r\n- Nonblocking headless loading\r\n- Legacy wait_for_analysis=true behavior preserved\r\n- Expanded regression coverage and updated documentation",
+    "minimumbinaryninjaversion": 5000,
+    "name": "BinAssistMCP",
+    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/29e66682-c37d-4821-a34a-d358fc2b1cd3/versions/bb4b29bb-eacb-4790-8094-d8dc8016f38b/platforms/3919/download/",
+    "packageUrl": "https://extensions.binary.ninja/v1/extensions/29e66682-c37d-4821-a34a-d358fc2b1cd3/versions/bb4b29bb-eacb-4790-8094-d8dc8016f38b/platforms/3919/download/?notrack=1",
+    "path": "jtang613_BinAssistMCP",
+    "platforms": [
+      "Darwin",
+      "Linux",
+      "Windows"
+    ],
+    "pluginmetadataversion": 2,
+    "projectData": {
+      "stargazers_count": 50,
+      "updated_at": "2026-08-31 18:06:31+00:00"
+    },
+    "projectUrl": "https://github.com/jtang613/BinAssistMCP",
+    "subdir": "",
+    "type": [
+      "binaryview",
+      "helper",
+      "ui"
+    ],
+    "version": "2.11.0",
+    "view_only": false,
+    "sha256": "13zlib8j5fdj8nwsjapp9qi671gf45mn0w5daipgvmk6b894i0k9"
+  },
+  {
+    "api": [
+      "python3"
+    ],
+    "author": "Benson Liu",
+    "dependencies": "mpmath\nsympy\ntyping_extensions\nz3-solver",
+    "description": "Automatically simplify mixed boolean-arithmetic (MBA) obfuscation expressions.",
+    "installinstructions": {},
+    "is_paid": false,
+    "lastUpdated": 1789262368,
+    "license": {
+      "name": "MIT",
+      "text": "Copyright (c) 2024 Benson Liu\r\n\r\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\r\n\r\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\r\n\r\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
+    },
+    "longdescription": "This script will automatically simplify mixed boolean-arithmetic (MBA) obfuscation expressions used for obfuscation.\n\n### Changelog\nMaintenance release. The headline change is that the plugin is now findable by its own name in the Binary Ninja plugin manager.\n\n## Fixed\n\n- **Searching for \"MBASED\" in the plugin manager returned nothing.** The plugin was registered correctly the whole time — it's in the Community Extensions manifest with all six platforms and a working download — but the search only matches name, description, and author, and \"MBASED\" appeared in none of them. It was reachable only by searching \"MBA\", \"boolean\", or \"Benson\". The registered name is now `MBASED: Mixed Boolean-Arithmetic (MBA) Deobfuscator`. (#50)\n- **The version string was stale.** `plugin.json` still read `0.0.1` at the `v1.0.0` tag, so the extension server listed 0.0.1 as the only available version. Since it sorts releases by that string, leaving it stale risked future releases not registering as new. (#50, #51)\n\n## Changed\n\n- **Formatting moved from `black` to `ruff`.** (#49, closes #47) Two things were causing confusing CI failures:\n - `black` was installed unpinned, so a new release could turn an untouched branch red on its own. CI now pins `ruff==0.16.7`.\n - `black --check *.py **/*.py` only reached the top level and one directory deep — anything nested further was never checked. It's now `ruff format --check --diff .`, which walks the tree and prints the diff it wants instead of only naming the file.\n - Contributors should now run `ruff format .`; see the Contributing section of the README.\n\n## Notes\n\nNo functional changes to the solver, parser, or passes. The only Python file touched was `experiments/experiment.py`, and that change is whitespace-only (verified by comparing parse trees).\n\n**Full Changelog**: https://github.com/bliutech/mbased/compare/v1.0.0...v1.1.0\n",
+    "minimumbinaryninjaversion": 0,
+    "name": "Mixed Boolean-Arithmetic (MBA) Deobfuscator",
+    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/ef19fb56-b97b-4e2d-8723-ad64aefe94ba/versions/387d3ef5-8082-4e66-9abf-6a6d8d9abe25/platforms/3967/download/",
+    "packageUrl": "https://extensions.binary.ninja/v1/extensions/ef19fb56-b97b-4e2d-8723-ad64aefe94ba/versions/387d3ef5-8082-4e66-9abf-6a6d8d9abe25/platforms/3967/download/?notrack=1",
+    "path": "bliutech_mbased",
+    "platforms": [
+      "Darwin",
+      "Linux",
+      "Windows"
+    ],
+    "pluginmetadataversion": 2,
+    "projectData": {
+      "stargazers_count": 44,
+      "updated_at": "2026-09-13 01:19:28+00:00"
+    },
+    "projectUrl": "https://github.com/bliutech/mbased",
+    "subdir": "",
+    "type": [
+      "helper"
+    ],
+    "version": "1.1.0",
+    "view_only": false,
+    "sha256": "0v3csa6bwl6p8n4ws28mlqf8g4y0jd75wnn97xr91j5s3hzfzi74"
+  },
+  {
+    "api": [
+      "python3"
+    ],
+    "author": "S1ckZer",
+    "dependencies": "",
+    "description": "Sidebar widget for IDA-style byte pattern signature scanning and generation.",
+    "installinstructions": {},
+    "is_paid": false,
+    "lastUpdated": 1774575479,
+    "license": {
+      "name": "MIT",
+      "text": "MIT License\r\n\r\nCopyright (c) 2026 S1ckZer\r\n\r\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \\\"Software\\\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\r\n\r\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\r\n\r\nTHE SOFTWARE IS PROVIDED \\\"AS IS\\\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
+    },
+    "longdescription": "A Binary Ninja sidebar plugin for scanning and generating byte pattern signatures.\r\n\r\nFeatures:\r\n- IDA-style byte pattern scanning with wildcard support (? and ??)\r\n- Sidebar UI with results table (Address, RVA, Section, Function, Instruction)\r\n- Signature generator with [marked] byte support for important offsets\r\n- Scan history (last 10 signatures)\r\n- All segments or executable-only scanning\r\n- Right-click context menu integration\r\n- Auto-strips non-hex junk from pasted signatures\n\n### Changelog\nInitial release",
+    "minimumbinaryninjaversion": 3164,
+    "name": "Sig Scanner - Binary Ninja",
+    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/88daf6ab-4216-4a48-808b-fec41dd578f8/versions/99e444cd-8238-44ad-a023-a76af629865c/platforms/3409/download/",
+    "packageUrl": "https://extensions.binary.ninja/v1/extensions/88daf6ab-4216-4a48-808b-fec41dd578f8/versions/99e444cd-8238-44ad-a023-a76af629865c/platforms/3409/download/?notrack=1",
+    "path": "S1ckZer_SigScanner",
+    "platforms": [
+      "Darwin",
+      "Linux",
+      "Windows"
+    ],
+    "pluginmetadataversion": 2,
+    "projectData": {
+      "stargazers_count": 3,
+      "updated_at": "2026-03-27 01:37:59+00:00"
+    },
+    "projectUrl": "https://github.com/S1ckZer/Sig-Scanner---Binary-Ninja",
+    "subdir": "",
+    "type": [
+      "ui"
+    ],
+    "version": "1.0.0",
+    "view_only": false,
+    "sha256": "19a13ahdfx539b7wy4zbw1k0mfl56nindk25myj7sdp5hkf04l2d"
+  },
+  {
+    "api": [
+      "python3"
+    ],
+    "author": "Jordan Wiens",
+    "dependencies": "",
+    "description": "Add custom actions to the context menu",
+    "installinstructions": {},
+    "is_paid": false,
+    "lastUpdated": 1779761971,
+    "license": {
+      "name": "MIT",
+      "text": "Copyright (c) 2026 Jordan Wiens\r\n\r\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\r\n\r\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\r\n\r\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
+    },
+    "longdescription": "# Custom Context\nAuthor: **Jordan Wiens**\n\n_Add arbitrary actions to the right-click context menu._\n\n## Description\n\nBinary Ninja registers a large number of UI actions — everything you can see and\nbind in the keybindings list. Most are reachable only via a hotkey or a top-level\nmenu. **Custom Context** lets you surface any of them directly in the right-click\ncontext menu so they're a click away wherever you're working.\n\nOpen **Plugins ▸ Custom Context ▸ Configure Context Menu…** to pick actions:\n\n- **Search** the full list of registered actions and **Add →** the ones you want.\n- **Reorder** your selections (Move Up / Move Down, or drag-and-drop) and\n **Remove** any you no longer need.\n- Choose where the block of custom actions sits in the menu with the\n **section position** control (0 = top, 255 = bottom).\n\nYour selections are saved to user settings and applied immediately — no restart\nneeded. Clicking **OK** refreshes the menus of all open views, and any view\nopened afterward picks up the configuration as well.\n\n### Notes\n\n- Works in the linear, graph, hex, types, and stack views (the views Binary Ninja\n exposes a context-menu hook for).\n- Actions appear only where they're valid. Binary Ninja builds context menus with\n inactive actions hidden, so each action's own `isValid` logic decides where it\n shows up (e.g. a function-only action won't clutter the hex view).\n- Action names that contain `\\` (such as `Patch\\Convert to NOP`) render as\n submenus, exactly as they appear elsewhere in the menus.\n- Actions that are already part of a view's native context menu are left\n untouched rather than duplicated.\n- In the configuration dialog, actions that are already in the right-click menu\n are shown **greyed out** in the available list. Hover for the reason — either\n the action is already in your selection on the right, or it's a native item in\n an open view's right-click menu. (Native detection looks at the currently open\n views; with no file open the dialog can't probe and disables nothing on that\n basis.) The plugin's sync would skip such duplicates anyway; the disable just\n surfaces that up front so you don't add an action expecting it to appear and\n then wonder why it doesn't.\n\n## How it works\n\nThe plugin registers a `UIContextNotification` and reconciles each view's\ncontext menu via three event-driven hooks (no polling / no `isValid` abuse):\n\n- `OnContextMenuCreated` — fires once when a view first builds its (persistent)\n context menu; adds the configured actions for that view.\n- `OnViewChange` — fires when you switch view type within a frame (e.g.\n linear ↔ graph), refreshing the now-current view in case it was previously\n cached with stale items.\n- On dialog save — walks the open tabs/frames and re-applies the change\n directly, so updates are immediate without a restart.\n\nThe sync is stateless and idempotent: the plugin recovers its own items from a\nmenu by querying the menu group, rather than tracking object identity (which\navoids the \"Internal C++ object already deleted\" GC trap when wrappers churn).\n\n## Minimum Version\n\n4000\n\n## License\n\nThis plugin is released under an [MIT license](./LICENSE).\n\n## Metadata Version\n\n2\n\n\n### Changelog\nUX and robustness improvements in the configure dialog.\n\n- **Multi-row block move.** Move Up / Move Down now move the whole selection as a block (preserving its internal order and refusing to collapse against the wall when any selected row is at the boundary), instead of only moving the current row.\n- **Already-in-menu actions are disabled** in the available list with an explanatory tooltip — either because they're already in your selection on the right, or because they're a native item in an open view's right-click menu (so the plugin would skip them to avoid a duplicate).\n- **Visible save failures.** If a settings write fails — either with an exception or by the core returning `False` (e.g. a schema/type mismatch) — the dialog now shows a `QMessageBox.critical` with the affected key and reason, keeps itself open, and skips `apply_to_open_views()` so a partial state isn't pushed to every live view.\n- **Low-noise diagnostic logging** on previously-silent menu/view API failures (`addAction`, `removeAction`, `getActions`, `getGroupForAction`, `setGroupOrdering`, the `UIContext`/`ViewFrame` enumeration, and the dialog's native probe). Logged at debug level — invisible at the default log level, available with `--log-level Debug` when chasing a UI-lifecycle issue.",
+    "minimumbinaryninjaversion": 4000,
+    "name": "Custom Context",
+    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/0d09e48c-36cb-4fc6-9e79-3bbdede06f77/versions/ad6efab9-fdc1-49e5-ac3b-2117afbf94a8/platforms/3541/download/",
+    "packageUrl": "https://extensions.binary.ninja/v1/extensions/0d09e48c-36cb-4fc6-9e79-3bbdede06f77/versions/ad6efab9-fdc1-49e5-ac3b-2117afbf94a8/platforms/3541/download/?notrack=1",
+    "path": "customcontext",
+    "platforms": [
+      "Darwin",
+      "Linux",
+      "Windows"
+    ],
+    "pluginmetadataversion": 2,
+    "projectData": {
+      "stargazers_count": 2,
+      "updated_at": "2026-05-26 02:19:31+00:00"
+    },
+    "projectUrl": "https://github.com/psifertex/custom_context/",
+    "subdir": "",
+    "type": [
+      "ui"
+    ],
+    "version": "1.0.3",
+    "view_only": false,
+    "sha256": "1bd8iknn02yjyz1hn9w31nr91j6g6gxqv20vyc1007nj5n0kgkrv"
+  },
+  {
+    "api": [
+      "python3"
+    ],
+    "author": "redthing1",
+    "dependencies": "",
+    "description": "Analyze things on the Moon",
+    "installinstructions": {},
+    "is_paid": false,
+    "lastUpdated": 1769680319,
+    "license": {
+      "name": "MIT",
+      "text": "Copyright (c) 2024-2025 redthing1\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
+    },
+    "longdescription": "# binja_moonanalyzer\r\n\r\nbinja: analyze things on the moon\r\n\r\n## overview\r\n\r\n- the idea of this project is to enable ai-assisted binary analysis in a chat-like fashion.\r\n- unlike many ai-assisted analysis tools, **moonanalyzer** is designed for chat rather than api calls. this tool is for conversational, stateful binary analysis in a way that's closer to the human workflow.\r\n- you, the user, are in the front seat, and can locate interesting code; when you find some, you can use the quick analyze tool to generate a contextualized prompt to send to the moon (your llm chat) for analysis.\r\n- the llm sends back a dsl script that can rename things and add comments based on its analysis of the decompilation.\r\n- it's designed in the way that you can keep adding to a stateful chat in a back-and-forth, gradually analyzing the binary.\r\n\r\n## features\r\n\r\n- smart analyze: send snippets of HLIL and disassembly and get back DSL that can rename and retype things\r\n- smart patch: send snippets of HLIL and disassembly along with an objective and get back a patch\r\n\r\n## guide\r\n\r\n- ensure python dependency `lark` (for parsing) is installed\r\n- go to settings, set scope to project/resource, and set project context under **MoonAnalyzer**\r\n- navigate to a function, and use Plugins > MoonAnalyzer and an analyze command\r\n- paste the prompt into a llm chat interface\r\n- use Plugins > MoonAnalyzer > Execute BN-DSL and run the llm output",
+    "minimumbinaryninjaversion": 3164,
+    "name": "Moon Analyzer",
+    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/95719044-7e04-44ba-937f-7b4bb7aa5412/versions/b0c53088-43c3-4f51-b685-36de052853db/platforms/3121/download/",
+    "packageUrl": "https://extensions.binary.ninja/v1/extensions/95719044-7e04-44ba-937f-7b4bb7aa5412/versions/b0c53088-43c3-4f51-b685-36de052853db/platforms/3121/download/?notrack=1",
+    "path": "redthing1_binja_moonanalyzer",
+    "platforms": [
+      "Darwin",
+      "Linux",
+      "Windows"
+    ],
+    "pluginmetadataversion": 2,
+    "projectData": {
+      "stargazers_count": 5,
+      "updated_at": "2026-01-29 09:51:59+00:00"
+    },
+    "projectUrl": "https://github.com/redthing1/binja_moonanalyzer",
+    "subdir": "",
+    "type": [
+      "binaryview",
+      "core",
+      "ui"
+    ],
+    "version": "0.4.0",
+    "view_only": false,
+    "sha256": "10kjhndcjidqb5bjmv525cd8l9yqplswy7yj5k8hya0xl9rib7sa"
+  },
+  {
+    "api": [
+      "python3"
+    ],
+    "author": "redthing1",
+    "dependencies": "",
+    "description": "Minidump Loader for Binary Ninja",
+    "installinstructions": {},
+    "is_paid": false,
+    "lastUpdated": 1746814092,
+    "license": {
+      "name": "MIT",
+      "text": "Copyright (c) 2024 redthing1\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
+    },
+    "longdescription": "# binja_minidump\r\n\r\n[minidump](https://learn.microsoft.com/en-us/windows/win32/debug/minidump-files) loader for binja\r\n\r\ni wanted to make a python alternative to this rust minidump loader [plugin](https://github.com/cxiao/minidump_bn).\r\n\r\nthis plugin is based on the [minidump](https://github.com/skelsec/minidump) python library, which is vendored into this repo for maintenance.",
+    "minimumbinaryninjaversion": 3164,
+    "name": "Minidump Loader",
+    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/18f1ceca-4f66-42a1-86d8-332788aed993/versions/af28a427-f658-47d9-b43f-eac72f0e9007/platforms/2400/download/",
+    "packageUrl": "https://extensions.binary.ninja/v1/extensions/18f1ceca-4f66-42a1-86d8-332788aed993/versions/af28a427-f658-47d9-b43f-eac72f0e9007/platforms/2400/download/?notrack=1",
+    "path": "redthing1_binja_minidump",
+    "platforms": [
+      "Darwin",
+      "Linux",
+      "Windows"
+    ],
+    "pluginmetadataversion": 2,
+    "projectData": {
+      "stargazers_count": 0,
+      "updated_at": "2025-05-09 18:08:12+00:00"
+    },
+    "projectUrl": "https://github.com/redthing1/binja_minidump",
+    "subdir": "",
+    "type": [
+      "binaryview",
+      "core",
+      "ui"
+    ],
+    "version": "0.0.1",
+    "view_only": false,
+    "sha256": "1rakbplm4k4lplcmx5446cd51zf96yxlhvhl2jv040si3jqqn3qf"
+  },
+  {
+    "api": [
+      "python3"
+    ],
+    "author": "Nicolae Binica",
+    "dependencies": "",
+    "description": "Xtensa Architecture Support and ESP8266 Image Loader",
+    "installinstructions": {},
+    "is_paid": false,
+    "lastUpdated": 1756581413,
+    "license": {
+      "name": "MIT",
+      "text": "Copyright 2025 Nicolae Binica\\n\\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \\\"Software\\\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\\n\\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\\n\\nTHE SOFTWARE IS PROVIDED \\\"AS IS\\\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\""
+    },
+    "longdescription": "# binja-xtensa: Architecture Plugin Support and ESP8266 Loader\n\nTensilica Xtensa Architecture Plugin Support and ESP8266 Firmware Loader for Binary Ninja.\n\n![screenshot of Binary Ninja showing setup and loop of a decompiled ESP8266\nArduino project](https://raw.githubusercontent.com/zackorndorff/binja-xtensa/0.5/screenshots/hero.png)\n\nThis is a fork of the original project created by @zackorndorff : https://github.com/zackorndorff/binja-xtensa\nThis work was done as a Master Semester project at EPFL, Lausanne, together \nwith the Cyber-Defence Campus, supervised by Daniel Hulliger.\n\nGoal of this project is to create a usable plugin with full functionality \nfor XTensa Architecture, implementing features left out by the original author.\n\nFor a quick overview of the Xtensa ISA, I recommend [Espressif's overview](https://dl.espressif.com/github_assets/espressif/xtensa-isa-doc/releases/download/latest/Xtensa.pdf).\n\n## Features\n\n* Disassembly of almost all Xtensa instructions, except for the MAC16 option instructions \n* Lifting for most Xtensa instructions, except for the MAC16 option instructions \n and a few instructions noted in [Lifted_instr_list](Lists/Lifted_instr_list).\n* Support for Xtensa ELF files so they will be automatically recognized\n* Loader for ESP8266 raw firmware dumps. This support is a little finicky to\n use, as there's multiple partitions in the firmware dumps. By default it uses\n the last one with a detected header; you can adjust this via Open With\n Options\n community-plugins.json generate-repo.sh generated.nix official-plugins.json plugin.nix python-plugin.nix At the moment it doesn't completely map the sections properly, but it's a\n start :)\n\n## What it doesn't do\n\n* Anything with the optional vector unit (MAC16)\n* Anything quickly. This is Python, and not particularly well optimized Python\n at that. If you're using this seriously, I recommend rewriting in C++\n* Find `main` in a raw binary for you\n\n## Installation\n\nInstall via the Binary Ninja plugin manager. Alternatively, clone this\nrepository into your Binary Ninja plugins directory. See the [official Binary\nNinja documentation](https://docs.binary.ninja/guide/plugins.html) for more\ndetails.\n\n# Plugin structure:\n community-plugins.json generate-repo.sh generated.nix official-plugins.json plugin.nix python-plugin.nix __init__.py: registers architecture, sets up reg names & control-flow instructions\n community-plugins.json generate-repo.sh generated.nix official-plugins.json plugin.nix python-plugin.nix binaryview.py: defines the ESP8266 Firmware for the loader\n community-plugins.json generate-repo.sh generated.nix official-plugins.json plugin.nix python-plugin.nix instruction.py: defines instruction formats, decoding rules\n community-plugins.json generate-repo.sh generated.nix official-plugins.json plugin.nix python-plugin.nix disassemble.py: uses format information to tokenize and print disassembled instructions\n community-plugins.json generate-repo.sh generated.nix official-plugins.json plugin.nix python-plugin.nix lifter.py: actual lifting logic to LLIL\n\n## Using the ESP8266 Firmware Loader\n\nThe default of picking the last usable partition works decent, but if you want\nmore control, use Open With Options and change `Loader > Which Firmware` to the\noption corresponding to the address you want to load.\n\nI attempt to load in symbols from the SDK's linker script so some of the\nROM-implemented functions are less mysterious. See\n[parse_rom_ld.py](binja_xtensa/parse_rom_ld.py) for the parsing code,\n[known_symbols.py](binja_xtensa/known_symbols.py) for the database it'll apply,\nand function `setup_esp8266_map` in\n[binaryview.py](binja_xtensa/binaryview.py#L17) for the code that applies it.\nThis should probably be a load time option... but it's not at the moment :/\n\n![screenshot of Binary Ninja's Open With Options showing the Loader Which\nFirmware option](https://raw.githubusercontent.com/zackorndorff/binja-xtensa/0.5/screenshots/open-with-options.png)\n\n\n## Evaluation\n\nTo check the amount of disassembled opcodes or unlifted instructions, you can use \nthe [evaluation.py](binja_xtensa/evaluation/evaluation.py) script. This loads all\nbinaries in a target folder, including contents of archive .a files, and runs the\nBinary Ninja analysis. The results are then stored in a target path provided to the\nscript. This helped with checking the progress during the implementation and understand\nwhich instructions should take priority when lifting. For visualizing the results,\nyou can use the plotter in [plotter.ipynb](binja_xtensa/evaluation/plotter.ipynb).\n\n## Testing\n\nThere are some simple tests in\n[test_instruction.py](binja_xtensa/test_instruction.py), which are mostly just\ntaking uniq'd output from objdump on some binaries I had laying around and\nmaking sure the output matches. They can be run with `python -m pytest` from the\nroot of the project.\n\n## Future Work\n\n* Improve lifters once additional Binary Ninja features are added:\n community-plugins.json generate-repo.sh generated.nix official-plugins.json plugin.nix python-plugin.nix Loop Option: function-level lifting necessary to lift loops that span multiple basic blocks. \n community-plugins.json generate-repo.sh generated.nix official-plugins.json plugin.nix python-plugin.nix Windowed Registers: Transparent copies would help higher level analysis\n* Cleanly implement LITBASE offset, using loading options\n community-plugins.json generate-repo.sh generated.nix official-plugins.json plugin.nix python-plugin.nix More information: Daniel Wegemer's [presentation](https://media.defcon.org/DEF%20CON%2031/DEF%20CON%2031%20presentations/Daniel%20Wegemer%20-%20Unlocking%20hidden%20powers%20in%20Xtensa%20based%20Qualcomm%20Wifi%20chips.pdf) at DEFCON31\n* Add MAC16 option lifters\n* Proper Flag usage when lifting instructions\n* Improve the raw firmware loader\n* Improve section classifications (e.g. currently .literal is seen as code instead of data)\n* Rewrite to be faster\n\n## License\n\nThis project copyright Nicolae Binica (@nicabi) and Zack Orndorff (@zackorndorff) and is available under the\nMIT license. See [LICENSE](LICENSE).\n\n\n### Changelog\nCompleted version of the original plugin written by Zack Orndorff",
+    "minimumbinaryninjaversion": 8001,
+    "name": "Xtensa Architecture Support and ESP8266 Loader",
+    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/a497c1b0-f852-4c2a-9fc8-d3b023e7c1bd/versions/970fd1e2-b8af-4476-8091-e059e36bf09d/platforms/2677/download/",
+    "packageUrl": "https://extensions.binary.ninja/v1/extensions/a497c1b0-f852-4c2a-9fc8-d3b023e7c1bd/versions/970fd1e2-b8af-4476-8091-e059e36bf09d/platforms/2677/download/?notrack=1",
+    "path": "nicabi_binja_xtensa2",
+    "platforms": [
+      "Darwin",
+      "Linux",
+      "Windows"
+    ],
+    "pluginmetadataversion": 2,
+    "projectData": {
+      "stargazers_count": 5,
+      "updated_at": "2025-08-30 19:16:53+00:00"
+    },
+    "projectUrl": "https://github.com/nicabi/binja-xtensa2",
+    "subdir": "",
+    "type": [
+      "architecture",
+      "binaryview"
+    ],
+    "version": "1.0",
+    "view_only": false,
+    "sha256": "1i0nd40n74a07mmnq6riiqlyddb1fq21p4glxrc56jy09rmwyarz"
+  },
+  {
+    "api": [
+      "python2",
+      "python3"
+    ],
+    "author": "Ahmet Bilal Can",
+    "dependencies": "",
+    "description": "RISC-V architecture plugin to load encrypted Riscy-Business binaries.",
+    "installinstructions": {},
+    "is_paid": false,
+    "lastUpdated": 1747845501,
+    "license": {
+      "name": "Apache-2.0",
+      "text": "Copyright 2025 Ahmet Bilal Can\n\nLicensed under the Apache License, Version 2.0 (the \"License\"); you may not use this file except in compliance with the License. You may obtain a copy of the License at\n\n\thttp://www.apache.org/licenses/LICENSE-2.0\n\nUnless required by applicable law or agreed to in writing, software distributed under the License is distributed on an \"AS IS\" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License."
+    },
+    "longdescription": "# bn-riscy-business\r\n\r\nAn architecture plug-in that allows binary ninja to load [Riscy-Business](https://github.com/thesecretclub/riscy-business/tree/master) payload binaries and see decrypted rv64i instructions.\r\n\r\nThis plugin is fork of [bn-riscv](https://github.com/uni-due-syssec/bn-riscv). \r\n\r\n\r\n## Installation\r\n\r\nFirst, you will need an installation of [capstone](https://github.com/aquynh/capstone) that supports RISC-V.\r\n\r\n```\r\npip install --user 'capstone'\r\n```\r\n\r\nThen drop this repository into your plugins directory manually. Note that you should use it from master if possible, releases are somewhat rare.",
+    "minimumbinaryninjaversion": 0,
+    "name": "bn-riscy-business",
+    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/0f239ef9-60b2-4882-9544-4949d3867616/versions/136fa5e4-9b86-43ba-8940-11368ea00a37/platforms/2407/download/",
+    "packageUrl": "https://extensions.binary.ninja/v1/extensions/0f239ef9-60b2-4882-9544-4949d3867616/versions/136fa5e4-9b86-43ba-8940-11368ea00a37/platforms/2407/download/?notrack=1",
+    "path": "eybisi_bnriscybusiness",
+    "platforms": [
+      "Darwin",
+      "Linux",
+      "Windows"
+    ],
+    "pluginmetadataversion": 2,
+    "projectData": {
+      "stargazers_count": 8,
+      "updated_at": "2025-05-21 16:38:21+00:00"
+    },
+    "projectUrl": "https://github.com/eybisi/bn-riscy-business",
+    "subdir": "",
+    "type": [
+      "architecture"
+    ],
+    "version": "0.1",
+    "view_only": false,
+    "sha256": "14srymzncjcdjjnxshwd1np0j4qg7qyhhc4hlnfvqxl3bm0nrhyg"
+  },
+  {
+    "api": [
+      "python3"
+    ],
+    "author": "pathtofile",
+    "dependencies": "",
+    "description": "Creates a deeplink to the current address and adds it to the clipboard",
+    "installinstructions": {},
+    "is_paid": false,
+    "lastUpdated": 1747572584,
+    "license": {
+      "name": "MIT",
+      "text": "Copyright 2025 pathtofile\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
+    },
+    "longdescription": "Binary Ninja plugin that creates a deeplink to the current address and adds it to the clipboard. Example deeplink:\r\n```\r\nbinaryninja:///path/to/binary.bndb?expr=0x40369e\r\n```\r\n\r\nThe link can then be saved into an external Wiki, notebook, etc. Binary Ninja automatically installs a link handler at install time, so you just need to 'open' the link in a browser or from the commandline\r\nand it will open the right database as the correct location.",
+    "minimumbinaryninjaversion": 7290,
+    "name": "Copy as Deeplink",
+    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/a6102c95-789d-4be3-b81a-ad5821925926/versions/99e8fa5e-a09d-4da6-beb5-2b2ead155ae5/platforms/2413/download/",
+    "packageUrl": "https://extensions.binary.ninja/v1/extensions/a6102c95-789d-4be3-b81a-ad5821925926/versions/99e8fa5e-a09d-4da6-beb5-2b2ead155ae5/platforms/2413/download/?notrack=1",
+    "path": "pathtofile_binja_plugin_copy_deeplink",
+    "platforms": [
+      "Darwin",
+      "Linux",
+      "Windows"
+    ],
+    "pluginmetadataversion": 2,
+    "projectData": {
+      "stargazers_count": 0,
+      "updated_at": "2025-05-18 12:49:44+00:00"
+    },
+    "projectUrl": "https://github.com/pathtofile/binja_plugin_copy_deeplink",
+    "subdir": "",
+    "type": [
+      "helper"
+    ],
+    "version": "1.0.0",
+    "view_only": false,
+    "sha256": "1lci97bp3v70fwq791bj90y3j1lf0slcgj436fa0l62rjchs3dwn"
+  },
+  {
+    "api": [
+      "C++"
+    ],
+    "author": "Accenture (Martin Petran)",
+    "dependencies": "",
+    "description": "Architecture plugin for Renesas RH850/V850 family of processors.",
+    "installinstructions": {},
+    "is_paid": false,
+    "lastUpdated": 1737546835,
+    "license": {
+      "name": "Apache-2.0",
+      "text": "Copyright 2024 Accenture\r\n\r\nLicensed under the Apache License, Version 2.0 (the \"License\"); you may not use this file except in compliance with the License. You may obtain a copy of the License at\r\n\r\n\thttp://www.apache.org/licenses/LICENSE-2.0\r\n\r\nUnless required by applicable law or agreed to in writing, software distributed under the License is distributed on an \"AS IS\" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License."
+    },
+    "longdescription": "This Binary Ninja plugin provides a native implementation for the Renesas RH850/V850 architecture. The main reason for writing this from scratch instead of using existing plugin is that any Architecture plugin written in Python is not usable for large binaries as the analysis takes ages. Therefore, this is a complete coverage of this architecture written purely in C/C++.",
+    "minimumbinaryninjaversion": 6135,
+    "name": "NEC850 Architecture",
+    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/e62e1aa9-020d-42b4-a6e8-f4ff89777d68/versions/7e65c727-d2dc-4acd-807c-9c1bc8542000/platforms/1273/download/",
+    "packageUrl": "https://extensions.binary.ninja/v1/extensions/e62e1aa9-020d-42b4-a6e8-f4ff89777d68/versions/7e65c727-d2dc-4acd-807c-9c1bc8542000/platforms/1273/download/?notrack=1",
+    "path": "Accenture_NEC850_Architecture",
+    "platforms": [
+      "Darwin",
+      "Linux",
+      "Windows"
+    ],
+    "pluginmetadataversion": 2,
+    "projectData": {
+      "stargazers_count": 6,
+      "updated_at": "2025-01-22 11:53:55+00:00"
+    },
+    "projectUrl": "https://github.com/Accenture/NEC850_Architecture",
+    "subdir": "",
+    "type": [
+      "architecture"
+    ],
+    "version": "1.0",
+    "view_only": true,
+    "sha256": ""
+  },
+  {
+    "api": [
+      "python3"
+    ],
+    "author": "Martyx00",
+    "dependencies": "tiktoken>=0.5.0",
+    "description": "LLM-assisted vulnerability research over Binary Ninja decompiler output.",
+    "installinstructions": {},
+    "is_paid": false,
+    "lastUpdated": 1781859520,
+    "license": {
+      "name": "Apache 2.0",
+      "text": "Copyright 2026 Martin Petran\r\n\r\nLicensed under the Apache License, Version 2.0 (the \"License\"); you may not use this file except in compliance with the License. You may obtain a copy of the License at\r\n\r\n\thttp://www.apache.org/licenses/LICENSE-2.0\r\n\r\nUnless required by applicable law or agreed to in writing, software distributed under the License is distributed on an \"AS IS\" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License."
+    },
+    "longdescription": "VulnFanatic-NG adds a sidebar panel that scans the current binary in up to three phases. Phase 1 finds calls to dangerous functions (strcpy, memcpy, system, ...) and builds a decompiler-centric context (call path, path constraints, the calling function body, arguments, the called function's declared prototype, and tainted-source hints) for each call site. Phase 2 (when symbols/variable names are available) locates security-sensitive code (authentication, cryptography, signing, ...). Phase 3 (opt-in and online-only) audits firmware for missing or weak hardware-attack hardening controls (fault-injection / side-channel mitigations). Each context is sent to an LLM together with a tailored prompt; only confirmed issues are reported. Findings are listed with clickable references that navigate the view to the vulnerable code, and can be triaged (Real Issue / False Positive) and exported as fine-tuning data. The LLM backend is fully configurable in Settings (OpenAI-compatible by default, plus Anthropic Claude, Google Gemini, and Azure OpenAI) and is typically a locally hosted model. An offline (no-LLM) programmatic Phase 1 mode is also available.\n\n### Changelog\nInitial release of the net generation of the plugin. Enjoy :)",
+    "minimumbinaryninjaversion": 4000,
+    "name": "VulnFanatic-NG",
+    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/d232b9d1-1c31-4ca9-a7be-8c55d17b16de/versions/1a2f56a9-b47d-4cbd-90fc-725690498f5b/platforms/3577/download/",
+    "packageUrl": "https://extensions.binary.ninja/v1/extensions/d232b9d1-1c31-4ca9-a7be-8c55d17b16de/versions/1a2f56a9-b47d-4cbd-90fc-725690498f5b/platforms/3577/download/?notrack=1",
+    "path": "vulnfanatic_ng",
+    "platforms": [
+      "Darwin",
+      "Linux",
+      "Windows"
+    ],
+    "pluginmetadataversion": 2,
+    "projectData": {
+      "stargazers_count": 18,
+      "updated_at": "2026-06-19 08:58:40+00:00"
+    },
+    "projectUrl": "https://github.com/Martyx00/VulnFanatic-NG",
+    "subdir": "",
+    "type": [
+      "ui",
+      "helper"
+    ],
+    "version": "1.0.0",
+    "view_only": false,
+    "sha256": "18v2cyzjclrwggzizlzg023nljffwc2lzl6d57k5p8py0mgqqgdc"
+  },
+  {
+    "api": [
+      "python3"
+    ],
     "author": "Tim Blazytko, Nicolò Altamura",
     "dependencies": "msynth @ git+https://github.com/mrphrazer/msynth@d719a58\nmiasm @ git+https://github.com/cea-sec/miasm@90dc167\nz3-solver\nwheel\nnetworkx",
     "description": "Analyze and simplify obfuscated code",
@@ -26,7 +464,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 258,
+      "stargazers_count": 259,
       "updated_at": "2026-05-20 12:00:42+00:00"
     },
     "projectUrl": "https://github.com/mrphrazer/obfuscation_analysis",
@@ -227,7 +665,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 827,
+      "stargazers_count": 829,
       "updated_at": "2026-07-14 20:47:18+00:00"
     },
     "projectUrl": "https://github.com/mahaloz/decomp2dbg",
@@ -326,16 +764,16 @@
     "description": "MSPX430-Lens adds MSP430X firmware support to Binary Ninja, with a focus on the MSP430F5438/MSP430F5438A memory map",
     "installinstructions": {},
     "is_paid": false,
-    "lastUpdated": 1789654923,
+    "lastUpdated": 1793064022,
     "license": {
       "name": "MIT",
       "text": "MIT License\r\n\r\nCopyright (c) 2026 J. DeFrancesco\r\n\r\nPermission is hereby granted, free of charge, to any person obtaining a copy\r\nof this software and associated documentation files (the \"Software\"), to deal\r\nin the Software without restriction, including without limitation the rights\r\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\r\ncopies of the Software, and to permit persons to whom the Software is\r\nfurnished to do so, subject to the following conditions:\r\n\r\nThe above copyright notice and this permission notice shall be included in all\r\ncopies or substantial portions of the Software.\r\n\r\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\r\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\r\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\r\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\r\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\r\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\r\nSOFTWARE."
     },
-    "longdescription": "Adds MSP430X instruction decoding, disassembly, LLIL lifting, and a mapped raw-firmware BinaryView. Raw firmware is the primary workflow, with ELF files supported as well. MSP430F5438 and MSP430F5438A are the currently tested device profiles. The loader seeds memory regions, interrupt vectors, conservative code islands, TI header labels, and fixed-offset structure types so firmware is ready for analysis.\n\n### Changelog\n## Highlights\n\n- Remove auto-inferred R4-R10 parameters only when SSA and exit-state checks prove they are pure callee-save bookkeeping.\n- Correct `SUBC Rn,Rn` lifting so the canceled input register no longer becomes a false logical argument.\n- Render classic `MOV @SP+,Rn` aliases as `POP` and use native stack IL for cleaner save/restore analysis.\n- Preserve analyst-authored function types and real semantic register inputs.\n- Keep address-width self-`SUBC` output clean through `subc_self20` without exposing raw `0xfffff` masks.\n\n## Verification\n\n- `make test`: 181 tests passed on Binary Ninja 6.0.10601.\n- Manual mapped-firmware GUI validation confirmed clean `uart_terminal_demo` and `lcd_draw_text` signatures.\n- `make dev-link fixture` rebuilt all smoke-test fixtures successfully.\n\n**Full Changelog**: https://github.com/jdefrancesco/MSP430X-Lens/compare/0.10.0...0.10.1",
+    "longdescription": "Adds MSP430X instruction decoding, disassembly, LLIL lifting, and a mapped raw-firmware BinaryView. Raw firmware is the primary workflow, with ELF files supported as well. MSP430F5438 and MSP430F5438A are the currently tested device profiles. The loader seeds memory regions, interrupt vectors, conservative code islands, TI header labels, and fixed-offset structure types so firmware is ready for analysis.\n\n### Changelog\n## Highlights\n\n- Promotes stripped little-endian MSP430 ELF files to MSP430X before initial analysis, even when e_flags is zero.\n- Corrects high-bank CPUX operands and adds exact decoding and lifting coverage for extended Format II instructions.\n- Adds conservative compiler-sequence pseudos for signed and unsigned table indexes, 20-bit word-pair loads, aligned pointer advances, MSB masks, and 32-bit word-pair shifts.\n- Preserves pseudo register and flag side effects, including ld20.w repeated-ADDX flags and 20-bit pointer wraparound through the clean add20 intrinsic.\n- Rejects unsafe pseudo folds involving special-register aliases and keeps jump-table recovery conservative.\n- Documents how to read MSP430X Lens intrinsics in Binary Ninja Pseudo C.\n\n## Validation\n\n- All 201 automated tests pass using Binary Ninja bundled Python.\n- Minimum supported Binary Ninja build remains 9757.\n\n## Upgrade\n\nUpdate MSP430X Lens through the Binary Ninja Plugin Manager and restart Binary Ninja.",
     "minimumbinaryninjaversion": 9757,
     "name": "MSP430X Lens",
-    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/ab8c6dbf-9922-48e6-8d28-64ae05319539/versions/7e658d6d-1ac7-4774-874b-cc1b7532943a/platforms/4009/download/",
-    "packageUrl": "https://extensions.binary.ninja/v1/extensions/ab8c6dbf-9922-48e6-8d28-64ae05319539/versions/7e658d6d-1ac7-4774-874b-cc1b7532943a/platforms/4009/download/?notrack=1",
+    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/ab8c6dbf-9922-48e6-8d28-64ae05319539/versions/8293c9a0-fe1f-4a63-ae4c-628779afb420/platforms/4123/download/",
+    "packageUrl": "https://extensions.binary.ninja/v1/extensions/ab8c6dbf-9922-48e6-8d28-64ae05319539/versions/8293c9a0-fe1f-4a63-ae4c-628779afb420/platforms/4123/download/?notrack=1",
     "path": "msp430xlens",
     "platforms": [
       "Darwin",
@@ -345,16 +783,16 @@
     "pluginmetadataversion": 2,
     "projectData": {
       "stargazers_count": 1,
-      "updated_at": "2026-09-17 14:22:03+00:00"
+      "updated_at": "2026-10-27 01:20:22+00:00"
     },
     "projectUrl": "https://github.com/jdefrancesco/MSP430X-Lens",
     "subdir": "",
     "type": [
       "architecture"
     ],
-    "version": "0.10.1",
+    "version": "0.11.1",
     "view_only": false,
-    "sha256": "0663lajv716v4k744knb40jz8ripi8zbw3fd7is74g9vyjbd2qf8"
+    "sha256": "0ikyicn7si72csnv32srqb38psjfas4lf4p1f7jm1ngwzvhizns7"
   },
   {
     "api": [
@@ -463,7 +901,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 13,
+      "stargazers_count": 14,
       "updated_at": "2026-08-02 06:48:15+00:00"
     },
     "projectUrl": "https://github.com/decoderloop/rust_metadata_carver",
@@ -869,6 +1307,44 @@
     "sha256": "0afajx77a0whaa3mpcqpyw6b1fv7a5d3xw0cihh79zw53w4ca150"
   },
   {
+    "api": [],
+    "author": "SecondNewtonLaw",
+    "dependencies": "",
+    "description": "Adds WASM as a valid architecture to Binary Ninja including lifting",
+    "installinstructions": {},
+    "is_paid": false,
+    "lastUpdated": 1793253975,
+    "license": {
+      "name": "MIT",
+      "text": "MIT License\r\n\r\nCopyright (c) 2026 SecondNewtonLaw\r\n\r\nPermission is hereby granted, free of charge, to any person obtaining a copy\r\nof this software and associated documentation files (the \"Software\"), to deal\r\nin the Software without restriction, including without limitation the rights\r\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\r\ncopies of the Software, and to permit persons to whom the Software is\r\nfurnished to do so, subject to the following conditions:\r\n\r\nThe above copyright notice and this permission notice shall be included in all\r\ncopies or substantial portions of the Software.\r\n\r\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\r\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\r\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\r\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\r\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\r\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\r\nSOFTWARE."
+    },
+    "longdescription": "# binja_wasm\n\n[![Build](https://github.com/SecondNewtonLaw/binja_wasm/actions/workflows/build.yml/badge.svg)](https://github.com/SecondNewtonLaw/binja_wasm/actions/workflows/build.yml)\n[![Release](https://img.shields.io/github/v/release/SecondNewtonLaw/binja_wasm?include_prereleases)](https://github.com/SecondNewtonLaw/binja_wasm/releases/latest)\n\nNative [Binary Ninja](https://binary.ninja) plugin for WebAssembly, providing an architecture to work with web assembly binaries, including decode, text and lifting into BNIL.\n\nOnly created this because the [python variant](https://github.com/ivision-research/binjawa/) originally made available was insanely slow, lacked BNIL lifting and was last updated years ago, as well as just not worth iterating on due to this when dealing with massive binaries in some web contexts.\n\n### State of Development\n\nWork in progress. The parser, branch map, stack-height analysis, lifter, and view are in place; import stubs and debug info are still pending. Expect lifting gaps on less common opcodes.\n\nThe plugin registers as `wasm-native` / `WASM-native` so it can sit next to the Python plugin. Remove the Python one to avoid two views claiming `.wasm`.\n\n### Installing\n\nGrab the zip matching your Binary Ninja build from [Releases](https://github.com/SecondNewtonLaw/binja_wasm/releases) and drop `binja_wasm.dll` into `%APPDATA%\\Binary Ninja\\plugins`.\n\nReleases are built automatically against every Binary Ninja stable tag (`bn-<version>`), plus a rolling `bn-dev` pre-release built from the `dev` branch of `binaryninja-api`. Windows x64 only for now.\n\nThe plugin must be built against the API revision of your Binary Ninja install (`api_REVISION.txt` in the install directory); otherwise the core rejects it. If no release matches your build, build it yourself.\n\n### Building\n\nRequirements: CMake 3.28+, Ninja, LLVM/clang, MSVC build tools (for the Windows SDK and CRT).\n\n```\ncmake --preset release\ncmake --build --preset release\nctest --test-dir cmake-build-release\n```\n\n- `-DLLVM_ROOT=<path>` points at the LLVM install (default `F:/SDKs/LLVM`, or the `LLVM_ROOT` environment variable).\n- `-DBN_API_REVISION=<commit|tag>` selects the `binaryninja-api` revision to fetch.\n- `-DBN_API_PATH=<checkout>` reuses a local `binaryninja-api` checkout.\n- `-DBN_INSTALL_DIR=<path>` points at the Binary Ninja install used for linking.\n- `-DBN_ALLOW_STUBS=ON -DBN_INSTALL_DIR=` links against generated stubs instead, no install needed (this is what CI does).\n- The DLL is copied to `%APPDATA%\\Binary Ninja\\plugins` after each build (`-DBN_USER_PLUGINS_DIR=` to change it).\n\nCreated using Claude Sonnet 5.5, after a spiteful afternoon reversing a WASM binary with the Python plugin!\n\n### Changelog\n**Full Changelog**: https://github.com/SecondNewtonLaw/binja_wasm/commits/v0.1.2",
+    "minimumbinaryninjaversion": 8614,
+    "name": "Binja WASM",
+    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/6b520359-718c-4632-bf29-d8c7b7ec6e8f/versions/ebe9f0c2-de3a-43d5-aaec-48cc3a2b27b1/platforms/4141/download/",
+    "packageUrl": "https://extensions.binary.ninja/v1/extensions/6b520359-718c-4632-bf29-d8c7b7ec6e8f/versions/ebe9f0c2-de3a-43d5-aaec-48cc3a2b27b1/platforms/4141/download/?notrack=1",
+    "path": "binja_wasm",
+    "platforms": [
+      "Darwin",
+      "Linux",
+      "Windows"
+    ],
+    "pluginmetadataversion": 2,
+    "projectData": {
+      "stargazers_count": 0,
+      "updated_at": "2026-10-29 06:06:15+00:00"
+    },
+    "projectUrl": "https://github.com/SecondNewtonLaw/binja_wasm",
+    "subdir": "",
+    "type": [
+      "architecture",
+      "binaryview"
+    ],
+    "version": "0.1.2",
+    "view_only": false,
+    "sha256": "0aqrvzvy2vp8nr9vwwhwwm3xvkrz5r4hq61vdcmqidqqqhfcfa11"
+  },
+  {
     "api": [
       "python3"
     ],
@@ -997,16 +1473,16 @@
     "description": "An architecture/binaryview plugin for Solana EBPF.",
     "installinstructions": {},
     "is_paid": false,
-    "lastUpdated": 1751383297,
+    "lastUpdated": 1793809623,
     "license": {
       "name": "MIT",
       "text": "Copyright (c) 2022 OtterSec LLC\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
     },
-    "longdescription": "# bn-ebpf-solana (v1.0.14)\r\nAuthor: **OtterSec LLC**\r\n\r\n_An architecture/binaryview plugin for Solana EBPF._\r\n\r\n## Description:\r\n\r\n\r\n\r\n\r\n## Installation Instructions\r\n\r\n### Darwin\r\n\r\n\r\n\r\n### Windows\r\n\r\n\r\n\r\n### Linux\r\n\r\n\r\n\r\n## Minimum Version\r\n\r\nThis plugin requires the following minimum version of Binary Ninja:\r\n\r\n* 3164\r\n\r\n\r\n\r\n## Required Dependencies\r\n\r\nThe following dependencies are required for this plugin:\r\n\r\n community-plugins.json generate-repo.sh generated.nix official-plugins.json plugin.nix python-plugin.nix pip - lief, fastmcp, tenacity, rust_demangler, pygments, anchorpy, solana, solders, base58\r\n\r\n\r\n## License\r\n\r\nThis plugin is released under a MIT license.\r\n## Metadata Version\r\n\r\n2",
+    "longdescription": "# bn-ebpf-solana\n\nA pure-python Binary Ninja plugin for Solana EBPF.\n\n## Regular install from plugin manager\n\nBe sure to install both `bn-ebpf-solana` and `binary_ninja_mcp` from the plugin manager\n\nTested on Binary Ninja `5.0.7486-Stable`\n\n## Manual installation (advanced, latest features)\n\nThis is only needed if you wish to tinker with the plugin to modify it.\n\nClone this [repo](https://github.com/otter-sec/bn-ebpf-solana), aswell as the [mcp plugin repo](https://github.com/fosdickio/binary_ninja_mcp), in your Binja `plugins` folder, located in the [user folder](https://docs.binary.ninja/guide/index.html#user-folder).\n\nNow install the requirements :\n- either by running `Install python3 module` in Binja's `command palette` (Ctrl + P) and install the following modules\n\n```\nlief\nanthropic\nfastmcp\ntenacity\nrust_demangler \npygments \nanchorpy \nsolana \nsolders\nbase58\n```\n\n- or by going to the [user folder](https://docs.binary.ninja/guide/index.html#user-folder) and installing the requirements.txt\n\nAlso for the MCP integration to work please install `mcp` globally (outside the binja venv) like so:\n\n```\npip install mcp\n```\n\n\nSee our [introductory blog post](https://osec.io/blog/2022-08-27-reverse-engineering-solana).\n\n**Instruction lifting!**\n![](https://github.com/otter-sec/bn-ebpf-solana/blob/master/assets/lift.png?raw=true)\n\n**Solana SDK Structures!**\n![](https://github.com/otter-sec/bn-ebpf-solana/blob/master/assets/struct.png?raw=true)\n\nCopy this directory into your Binary Ninja plugins folder and restart.\n\n## Features\n\n- **Instruction Lifting**: All EBPF instructions are lifted to LLIL\n- **Accurate Memory Maps**: We implement Solana-specific memory maps (0x{1/2/3/4}00000000 addresses for data/stack/heap/input)\n- **Solana ELF Relocations**: Solana-specific ELF relocations\n- **Syscall Function Signatures**: Full signatures for all of the Solana syscalls\n- **(partial) Solana SDK Types**: Type definitions for all Solana SDK objects. (fully complete for C, in-progress for Rust)\n\n### MCP integration\n\nIn order to use the MCP integration please set up your anthropic api key in the settings under\n\n```\nMCP settings > Anthropic API Key\n```\n\nYou will now be able to use the side menu on the right, symbolized by an R. \nClick on any function to start prompting the model to call MCP actions, and to ultimately display a Rust version in the side panel\n\n_TODO:_\n\n- **Solana SDK Signature Matching**: Automatically match common Solana SDK functions.\n\n## Debugging\n\n```\n[ScriptingProvider] ModuleNotFoundError: No module named 'lief'\n```\n\nIs `lief` installed?\n\nRun the following in the Binja python console\n\n```python\nimport lief\nlief.__version__\n```\n\nIf you get an error, refer to the **Installation** section\n\n\n### Changelog\nBump plugin.json version",
     "minimumbinaryninjaversion": 3164,
     "name": "bn-ebpf-solana",
-    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/bc44863a-030d-49c3-9503-c71a5ee99adf/versions/e5bc58d3-653e-49b6-ab6b-de4be32b457b/platforms/2486/download/",
-    "packageUrl": "https://extensions.binary.ninja/v1/extensions/bc44863a-030d-49c3-9503-c71a5ee99adf/versions/e5bc58d3-653e-49b6-ab6b-de4be32b457b/platforms/2486/download/?notrack=1",
+    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/bc44863a-030d-49c3-9503-c71a5ee99adf/versions/55958e30-8ff5-4bfe-9720-52f2a92c8cdd/platforms/4135/download/",
+    "packageUrl": "https://extensions.binary.ninja/v1/extensions/bc44863a-030d-49c3-9503-c71a5ee99adf/versions/55958e30-8ff5-4bfe-9720-52f2a92c8cdd/platforms/4135/download/?notrack=1",
     "path": "ottersec_bnebpfsolana",
     "platforms": [
       "Darwin",
@@ -1016,7 +1492,7 @@
     "pluginmetadataversion": 2,
     "projectData": {
       "stargazers_count": 257,
-      "updated_at": "2025-07-01 15:21:37+00:00"
+      "updated_at": "2026-11-04 16:27:03+00:00"
     },
     "projectUrl": "https://github.com/otter-sec/bn-ebpf-solana",
     "subdir": "",
@@ -1024,9 +1500,9 @@
       "architecture",
       "binaryview"
     ],
-    "version": "1.0.14",
+    "version": "1.0.18",
     "view_only": false,
-    "sha256": "0jscawpfrl5np8fbm2811l6zym15mwl43rxr9lcirblrnv9gva98"
+    "sha256": "1vy76gr2vjkwj6nr249qz0wyy1c6i5bgxvfyj93g4scbx3w0dr3w"
   },
   {
     "api": [
@@ -1150,6 +1626,45 @@
     "api": [
       "python3"
     ],
+    "author": "Rony",
+    "dependencies": "smda==5.0.2\nrequests\nmcrit==1.16.0",
+    "description": "Adds MCRIT as a similarity back-end",
+    "installinstructions": {},
+    "is_paid": false,
+    "lastUpdated": 1793437315,
+    "license": {
+      "name": "GPL v3",
+      "text": "GNU GENERAL PUBLIC LICENSE\r\n Version 3, 29 June 2007\r\n\r\n Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>\r\n Everyone is permitted to copy and distribute verbatim copies\r\n of this license document, but changing it is not allowed.\r\n\r\n Preamble\r\n\r\n The GNU General Public License is a free, copyleft license for\r\nsoftware and other kinds of works.\r\n\r\n The licenses for most software and other practical works are designed\r\nto take away your freedom to share and change the works. By contrast,\r\nthe GNU General Public License is intended to guarantee your freedom to\r\nshare and change all versions of a program--to make sure it remains free\r\nsoftware for all its users. We, the Free Software Foundation, use the\r\nGNU General Public License for most of our software; it applies also to\r\nany other work released this way by its authors. You can apply it to\r\nyour programs, too.\r\n\r\n When we speak of free software, we are referring to freedom, not\r\nprice. Our General Public Licenses are designed to make sure that you\r\nhave the freedom to distribute copies of free software (and charge for\r\nthem if you wish), that you receive source code or can get it if you\r\nwant it, that you can change the software or use pieces of it in new\r\nfree programs, and that you know you can do these things.\r\n\r\n To protect your rights, we need to prevent others from denying you\r\nthese rights or asking you to surrender the rights. Therefore, you have\r\ncertain responsibilities if you distribute copies of the software, or if\r\nyou modify it: responsibilities to respect the freedom of others.\r\n\r\n For example, if you distribute copies of such a program, whether\r\ngratis or for a fee, you must pass on to the recipients the same\r\nfreedoms that you received. You must make sure that they, too, receive\r\nor can get the source code. And you must show them these terms so they\r\nknow their rights.\r\n\r\n Developers that use the GNU GPL protect your rights with two steps:\r\n(1) assert copyright on the software, and (2) offer you this License\r\ngiving you legal permission to copy, distribute and/or modify it.\r\n\r\n For the developers' and authors' protection, the GPL clearly explains\r\nthat there is no warranty for this free software. For both users' and\r\nauthors' sake, the GPL requires that modified versions be marked as\r\nchanged, so that their problems will not be attributed erroneously to\r\nauthors of previous versions.\r\n\r\n Some devices are designed to deny users access to install or run\r\nmodified versions of the software inside them, although the manufacturer\r\ncan do so. This is fundamentally incompatible with the aim of\r\nprotecting users' freedom to change the software. The systematic\r\npattern of such abuse occurs in the area of products for individuals to\r\nuse, which is precisely where it is most unacceptable. Therefore, we\r\nhave designed this version of the GPL to prohibit the practice for those\r\nproducts. If such problems arise substantially in other domains, we\r\nstand ready to extend this provision to those domains in future versions\r\nof the GPL, as needed to protect the freedom of users.\r\n\r\n Finally, every program is threatened constantly by software patents.\r\nStates should not allow patents to restrict development and use of\r\nsoftware on general-purpose computers, but in those that do, we wish to\r\navoid the special danger that patents applied to a free program could\r\nmake it effectively proprietary. To prevent this, the GPL assures that\r\npatents cannot be used to render the program non-free.\r\n\r\n The precise terms and conditions for copying, distribution and\r\nmodification follow.\r\n\r\n TERMS AND CONDITIONS\r\n\r\n 0. Definitions.\r\n\r\n \"This License\" refers to version 3 of the GNU General Public License.\r\n\r\n \"Copyright\" also means copyright-like laws that apply to other kinds of\r\nworks, such as semiconductor masks.\r\n\r\n \"The Program\" refers to any copyrightable work licensed under this\r\nLicense. Each licensee is addressed as \"you\". \"Licensees\" and\r\n\"recipients\" may be individuals or organizations.\r\n\r\n To \"modify\" a work means to copy from or adapt all or part of the work\r\nin a fashion requiring copyright permission, other than the making of an\r\nexact copy. The resulting work is called a \"modified version\" of the\r\nearlier work or a work \"based on\" the earlier work.\r\n\r\n A \"covered work\" means either the unmodified Program or a work based\r\non the Program.\r\n\r\n To \"propagate\" a work means to do anything with it that, without\r\npermission, would make you directly or secondarily liable for\r\ninfringement under applicable copyright law, except executing it on a\r\ncomputer or modifying a private copy. Propagation includes copying,\r\ndistribution (with or without modification), making available to the\r\npublic, and in some countries other activities as well.\r\n\r\n To \"convey\" a work means any kind of propagation that enables other\r\nparties to make or receive copies. Mere interaction with a user through\r\na computer network, with no transfer of a copy, is not conveying.\r\n\r\n An interactive user interface displays \"Appropriate Legal Notices\"\r\nto the extent that it includes a convenient and prominently visible\r\nfeature that (1) displays an appropriate copyright notice, and (2)\r\ntells the user that there is no warranty for the work (except to the\r\nextent that warranties are provided), that licensees may convey the\r\nwork under this License, and how to view a copy of this License. If\r\nthe interface presents a list of user commands or options, such as a\r\nmenu, a prominent item in the list meets this criterion.\r\n\r\n 1. Source Code.\r\n\r\n The \"source code\" for a work means the preferred form of the work\r\nfor making modifications to it. \"Object code\" means any non-source\r\nform of a work.\r\n\r\n A \"Standard Interface\" means an interface that either is an official\r\nstandard defined by a recognized standards body, or, in the case of\r\ninterfaces specified for a particular programming language, one that\r\nis widely used among developers working in that language.\r\n\r\n The \"System Libraries\" of an executable work include anything, other\r\nthan the work as a whole, that (a) is included in the normal form of\r\npackaging a Major Component, but which is not part of that Major\r\nComponent, and (b) serves only to enable use of the work with that\r\nMajor Component, or to implement a Standard Interface for which an\r\nimplementation is available to the public in source code form. A\r\n\"Major Component\", in this context, means a major essential component\r\n(kernel, window system, and so on) of the specific operating system\r\n(if any) on which the executable work runs, or a compiler used to\r\nproduce the work, or an object code interpreter used to run it.\r\n\r\n The \"Corresponding Source\" for a work in object code form means all\r\nthe source code needed to generate, install, and (for an executable\r\nwork) run the object code and to modify the work, including scripts to\r\ncontrol those activities. However, it does not include the work's\r\nSystem Libraries, or general-purpose tools or generally available free\r\nprograms which are used unmodified in performing those activities but\r\nwhich are not part of the work. For example, Corresponding Source\r\nincludes interface definition files associated with source files for\r\nthe work, and the source code for shared libraries and dynamically\r\nlinked subprograms that the work is specifically designed to require,\r\nsuch as by intimate data communication or control flow between those\r\nsubprograms and other parts of the work.\r\n\r\n The Corresponding Source need not include anything that users\r\ncan regenerate automatically from other parts of the Corresponding\r\nSource.\r\n\r\n The Corresponding Source for a work in source code form is that\r\nsame work.\r\n\r\n 2. Basic Permissions.\r\n\r\n All rights granted under this License are granted for the term of\r\ncopyright on the Program, and are irrevocable provided the stated\r\nconditions are met. This License explicitly affirms your unlimited\r\npermission to run the unmodified Program. The output from running a\r\ncovered work is covered by this License only if the output, given its\r\ncontent, constitutes a covered work. This License acknowledges your\r\nrights of fair use or other equivalent, as provided by copyright law.\r\n\r\n You may make, run and propagate covered works that you do not\r\nconvey, without conditions so long as your license otherwise remains\r\nin force. You may convey covered works to others for the sole purpose\r\nof having them make modifications exclusively for you, or provide you\r\nwith facilities for running those works, provided that you comply with\r\nthe terms of this License in conveying all material for which you do\r\nnot control copyright. Those thus making or running the covered works\r\nfor you must do so exclusively on your behalf, under your direction\r\nand control, on terms that prohibit them from making any copies of\r\nyour copyrighted material outside their relationship with you.\r\n\r\n Conveying under any other circumstances is permitted solely under\r\nthe conditions stated below. Sublicensing is not allowed; section 10\r\nmakes it unnecessary.\r\n\r\n 3. Protecting Users' Legal Rights From Anti-Circumvention Law.\r\n\r\n No covered work shall be deemed part of an effective technological\r\nmeasure under any applicable law fulfilling obligations under article\r\n11 of the WIPO copyright treaty adopted on 20 December 1996, or\r\nsimilar laws prohibiting or restricting circumvention of such\r\nmeasures.\r\n\r\n When you convey a covered work, you waive any legal power to forbid\r\ncircumvention of technological measures to the extent such circumvention\r\nis effected by exercising rights under this License with respect to\r\nthe covered work, and you disclaim any intention to limit operation or\r\nmodification of the work as a means of enforcing, against the work's\r\nusers, your or third parties' legal rights to forbid circumvention of\r\ntechnological measures.\r\n\r\n 4. Conveying Verbatim Copies.\r\n\r\n You may convey verbatim copies of the Program's source code as you\r\nreceive it, in any medium, provided that you conspicuously and\r\nappropriately publish on each copy an appropriate copyright notice;\r\nkeep intact all notices stating that this License and any\r\nnon-permissive terms added in accord with section 7 apply to the code;\r\nkeep intact all notices of the absence of any warranty; and give all\r\nrecipients a copy of this License along with the Program.\r\n\r\n You may charge any price or no price for each copy that you convey,\r\nand you may offer support or warranty protection for a fee.\r\n\r\n 5. Conveying Modified Source Versions.\r\n\r\n You may convey a work based on the Program, or the modifications to\r\nproduce it from the Program, in the form of source code under the\r\nterms of section 4, provided that you also meet all of these conditions:\r\n\r\n a) The work must carry prominent notices stating that you modified\r\n it, and giving a relevant date.\r\n\r\n b) The work must carry prominent notices stating that it is\r\n released under this License and any conditions added under section\r\n 7. This requirement modifies the requirement in section 4 to\r\n \"keep intact all notices\".\r\n\r\n c) You must license the entire work, as a whole, under this\r\n License to anyone who comes into possession of a copy. This\r\n License will therefore apply, along with any applicable section 7\r\n additional terms, to the whole of the work, and all its parts,\r\n regardless of how they are packaged. This License gives no\r\n permission to license the work in any other way, but it does not\r\n invalidate such permission if you have separately received it.\r\n\r\n d) If the work has interactive user interfaces, each must display\r\n Appropriate Legal Notices; however, if the Program has interactive\r\n interfaces that do not display Appropriate Legal Notices, your\r\n work need not make them do so.\r\n\r\n A compilation of a covered work with other separate and independent\r\nworks, which are not by their nature extensions of the covered work,\r\nand which are not combined with it such as to form a larger program,\r\nin or on a volume of a storage or distribution medium, is called an\r\n\"aggregate\" if the compilation and its resulting copyright are not\r\nused to limit the access or legal rights of the compilation's users\r\nbeyond what the individual works permit. Inclusion of a covered work\r\nin an aggregate does not cause this License to apply to the other\r\nparts of the aggregate.\r\n\r\n 6. Conveying Non-Source Forms.\r\n\r\n You may convey a covered work in object code form under the terms\r\nof sections 4 and 5, provided that you also convey the\r\nmachine-readable Corresponding Source under the terms of this License,\r\nin one of these ways:\r\n\r\n a) Convey the object code in, or embodied in, a physical product\r\n (including a physical distribution medium), accompanied by the\r\n Corresponding Source fixed on a durable physical medium\r\n customarily used for software interchange.\r\n\r\n b) Convey the object code in, or embodied in, a physical product\r\n (including a physical distribution medium), accompanied by a\r\n written offer, valid for at least three years and valid for as\r\n long as you offer spare parts or customer support for that product\r\n model, to give anyone who possesses the object code either (1) a\r\n copy of the Corresponding Source for all the software in the\r\n product that is covered by this License, on a durable physical\r\n medium customarily used for software interchange, for a price no\r\n more than your reasonable cost of physically performing this\r\n conveying of source, or (2) access to copy the\r\n Corresponding Source from a network server at no charge.\r\n\r\n c) Convey individual copies of the object code with a copy of the\r\n written offer to provide the Corresponding Source. This\r\n alternative is allowed only occasionally and noncommercially, and\r\n only if you received the object code with such an offer, in accord\r\n with subsection 6b.\r\n\r\n d) Convey the object code by offering access from a designated\r\n place (gratis or for a charge), and offer equivalent access to the\r\n Corresponding Source in the same way through the same place at no\r\n further charge. You need not require recipients to copy the\r\n Corresponding Source along with the object code. If the place to\r\n copy the object code is a network server, the Corresponding Source\r\n may be on a different server (operated by you or a third party)\r\n that supports equivalent copying facilities, provided you maintain\r\n clear directions next to the object code saying where to find the\r\n Corresponding Source. Regardless of what server hosts the\r\n Corresponding Source, you remain obligated to ensure that it is\r\n available for as long as needed to satisfy these requirements.\r\n\r\n e) Convey the object code using peer-to-peer transmission, provided\r\n you inform other peers where the object code and Corresponding\r\n Source of the work are being offered to the general public at no\r\n charge under subsection 6d.\r\n\r\n A separable portion of the object code, whose source code is excluded\r\nfrom the Corresponding Source as a System Library, need not be\r\nincluded in conveying the object code work.\r\n\r\n A \"User Product\" is either (1) a \"consumer product\", which means any\r\ntangible personal property which is normally used for personal, family,\r\nor household purposes, or (2) anything designed or sold for incorporation\r\ninto a dwelling. In determining whether a product is a consumer product,\r\ndoubtful cases shall be resolved in favor of coverage. For a particular\r\nproduct received by a particular user, \"normally used\" refers to a\r\ntypical or common use of that class of product, regardless of the status\r\nof the particular user or of the way in which the particular user\r\nactually uses, or expects or is expected to use, the product. A product\r\nis a consumer product regardless of whether the product has substantial\r\ncommercial, industrial or non-consumer uses, unless such uses represent\r\nthe only significant mode of use of the product.\r\n\r\n \"Installation Information\" for a User Product means any methods,\r\nprocedures, authorization keys, or other information required to install\r\nand execute modified versions of a covered work in that User Product from\r\na modified version of its Corresponding Source. The information must\r\nsuffice to ensure that the continued functioning of the modified object\r\ncode is in no case prevented or interfered with solely because\r\nmodification has been made.\r\n\r\n If you convey an object code work under this section in, or with, or\r\nspecifically for use in, a User Product, and the conveying occurs as\r\npart of a transaction in which the right of possession and use of the\r\nUser Product is transferred to the recipient in perpetuity or for a\r\nfixed term (regardless of how the transaction is characterized), the\r\nCorresponding Source conveyed under this section must be accompanied\r\nby the Installation Information. But this requirement does not apply\r\nif neither you nor any third party retains the ability to install\r\nmodified object code on the User Product (for example, the work has\r\nbeen installed in ROM).\r\n\r\n The requirement to provide Installation Information does not include a\r\nrequirement to continue to provide support service, warranty, or updates\r\nfor a work that has been modified or installed by the recipient, or for\r\nthe User Product in which it has been modified or installed. Access to a\r\nnetwork may be denied when the modification itself materially and\r\nadversely affects the operation of the network or violates the rules and\r\nprotocols for communication across the network.\r\n\r\n Corresponding Source conveyed, and Installation Information provided,\r\nin accord with this section must be in a format that is publicly\r\ndocumented (and with an implementation available to the public in\r\nsource code form), and must require no special password or key for\r\nunpacking, reading or copying.\r\n\r\n 7. Additional Terms.\r\n\r\n \"Additional permissions\" are terms that supplement the terms of this\r\nLicense by making exceptions from one or more of its conditions.\r\nAdditional permissions that are applicable to the entire Program shall\r\nbe treated as though they were included in this License, to the extent\r\nthat they are valid under applicable law. If additional permissions\r\napply only to part of the Program, that part may be used separately\r\nunder those permissions, but the entire Program remains governed by\r\nthis License without regard to the additional permissions.\r\n\r\n When you convey a copy of a covered work, you may at your option\r\nremove any additional permissions from that copy, or from any part of\r\nit. (Additional permissions may be written to require their own\r\nremoval in certain cases when you modify the work.) You may place\r\nadditional permissions on material, added by you to a covered work,\r\nfor which you have or can give appropriate copyright permission.\r\n\r\n Notwithstanding any other provision of this License, for material you\r\nadd to a covered work, you may (if authorized by the copyright holders of\r\nthat material) supplement the terms of this License with terms:\r\n\r\n a) Disclaiming warranty or limiting liability differently from the\r\n terms of sections 15 and 16 of this License; or\r\n\r\n b) Requiring preservation of specified reasonable legal notices or\r\n author attributions in that material or in the Appropriate Legal\r\n Notices displayed by works containing it; or\r\n\r\n c) Prohibiting misrepresentation of the origin of that material, or\r\n requiring that modified versions of such material be marked in\r\n reasonable ways as different from the original version; or\r\n\r\n d) Limiting the use for publicity purposes of names of licensors or\r\n authors of the material; or\r\n\r\n e) Declining to grant rights under trademark law for use of some\r\n trade names, trademarks, or service marks; or\r\n\r\n f) Requiring indemnification of licensors and authors of that\r\n material by anyone who conveys the material (or modified versions of\r\n it) with contractual assumptions of liability to the recipient, for\r\n any liability that these contractual assumptions directly impose on\r\n those licensors and authors.\r\n\r\n All other non-permissive additional terms are considered \"further\r\nrestrictions\" within the meaning of section 10. If the Program as you\r\nreceived it, or any part of it, contains a notice stating that it is\r\ngoverned by this License along with a term that is a further\r\nrestriction, you may remove that term. If a license document contains\r\na further restriction but permits relicensing or conveying under this\r\nLicense, you may add to a covered work material governed by the terms\r\nof that license document, provided that the further restriction does\r\nnot survive such relicensing or conveying.\r\n\r\n If you add terms to a covered work in accord with this section, you\r\nmust place, in the relevant source files, a statement of the\r\nadditional terms that apply to those files, or a notice indicating\r\nwhere to find the applicable terms.\r\n\r\n Additional terms, permissive or non-permissive, may be stated in the\r\nform of a separately written license, or stated as exceptions;\r\nthe above requirements apply either way.\r\n\r\n 8. Termination.\r\n\r\n You may not propagate or modify a covered work except as expressly\r\nprovided under this License. Any attempt otherwise to propagate or\r\nmodify it is void, and will automatically terminate your rights under\r\nthis License (including any patent licenses granted under the third\r\nparagraph of section 11).\r\n\r\n However, if you cease all violation of this License, then your\r\nlicense from a particular copyright holder is reinstated (a)\r\nprovisionally, unless and until the copyright holder explicitly and\r\nfinally terminates your license, and (b) permanently, if the copyright\r\nholder fails to notify you of the violation by some reasonable means\r\nprior to 60 days after the cessation.\r\n\r\n Moreover, your license from a particular copyright holder is\r\nreinstated permanently if the copyright holder notifies you of the\r\nviolation by some reasonable means, this is the first time you have\r\nreceived notice of violation of this License (for any work) from that\r\ncopyright holder, and you cure the violation prior to 30 days after\r\nyour receipt of the notice.\r\n\r\n Termination of your rights under this section does not terminate the\r\nlicenses of parties who have received copies or rights from you under\r\nthis License. If your rights have been terminated and not permanently\r\nreinstated, you do not qualify to receive new licenses for the same\r\nmaterial under section 10.\r\n\r\n 9. Acceptance Not Required for Having Copies.\r\n\r\n You are not required to accept this License in order to receive or\r\nrun a copy of the Program. Ancillary propagation of a covered work\r\noccurring solely as a consequence of using peer-to-peer transmission\r\nto receive a copy likewise does not require acceptance. However,\r\nnothing other than this License grants you permission to propagate or\r\nmodify any covered work. These actions infringe copyright if you do\r\nnot accept this License. Therefore, by modifying or propagating a\r\ncovered work, you indicate your acceptance of this License to do so.\r\n\r\n 10. Automatic Licensing of Downstream Recipients.\r\n\r\n Each time you convey a covered work, the recipient automatically\r\nreceives a license from the original licensors, to run, modify and\r\npropagate that work, subject to this License. You are not responsible\r\nfor enforcing compliance by third parties with this License.\r\n\r\n An \"entity transaction\" is a transaction transferring control of an\r\norganization, or substantially all assets of one, or subdividing an\r\norganization, or merging organizations. If propagation of a covered\r\nwork results from an entity transaction, each party to that\r\ntransaction who receives a copy of the work also receives whatever\r\nlicenses to the work the party's predecessor in interest had or could\r\ngive under the previous paragraph, plus a right to possession of the\r\nCorresponding Source of the work from the predecessor in interest, if\r\nthe predecessor has it or can get it with reasonable efforts.\r\n\r\n You may not impose any further restrictions on the exercise of the\r\nrights granted or affirmed under this License. For example, you may\r\nnot impose a license fee, royalty, or other charge for exercise of\r\nrights granted under this License, and you may not initiate litigation\r\n(including a cross-claim or counterclaim in a lawsuit) alleging that\r\nany patent claim is infringed by making, using, selling, offering for\r\nsale, or importing the Program or any portion of it.\r\n\r\n 11. Patents.\r\n\r\n A \"contributor\" is a copyright holder who authorizes use under this\r\nLicense of the Program or a work on which the Program is based. The\r\nwork thus licensed is called the contributor's \"contributor version\".\r\n\r\n A contributor's \"essential patent claims\" are all patent claims\r\nowned or controlled by the contributor, whether already acquired or\r\nhereafter acquired, that would be infringed by some manner, permitted\r\nby this License, of making, using, or selling its contributor version,\r\nbut do not include claims that would be infringed only as a\r\nconsequence of further modification of the contributor version. For\r\npurposes of this definition, \"control\" includes the right to grant\r\npatent sublicenses in a manner consistent with the requirements of\r\nthis License.\r\n\r\n Each contributor grants you a non-exclusive, worldwide, royalty-free\r\npatent license under the contributor's essential patent claims, to\r\nmake, use, sell, offer for sale, import and otherwise run, modify and\r\npropagate the contents of its contributor version.\r\n\r\n In the following three paragraphs, a \"patent license\" is any express\r\nagreement or commitment, however denominated, not to enforce a patent\r\n(such as an express permission to practice a patent or covenant not to\r\nsue for patent infringement). To \"grant\" such a patent license to a\r\nparty means to make such an agreement or commitment not to enforce a\r\npatent against the party.\r\n\r\n If you convey a covered work, knowingly relying on a patent license,\r\nand the Corresponding Source of the work is not available for anyone\r\nto copy, free of charge and under the terms of this License, through a\r\npublicly available network server or other readily accessible means,\r\nthen you must either (1) cause the Corresponding Source to be so\r\navailable, or (2) arrange to deprive yourself of the benefit of the\r\npatent license for this particular work, or (3) arrange, in a manner\r\nconsistent with the requirements of this License, to extend the patent\r\nlicense to downstream recipients. \"Knowingly relying\" means you have\r\nactual knowledge that, but for the patent license, your conveying the\r\ncovered work in a country, or your recipient's use of the covered work\r\nin a country, would infringe one or more identifiable patents in that\r\ncountry that you have reason to believe are valid.\r\n\r\n If, pursuant to or in connection with a single transaction or\r\narrangement, you convey, or propagate by procuring conveyance of, a\r\ncovered work, and grant a patent license to some of the parties\r\nreceiving the covered work authorizing them to use, propagate, modify\r\nor convey a specific copy of the covered work, then the patent license\r\nyou grant is automatically extended to all recipients of the covered\r\nwork and works based on it.\r\n\r\n A patent license is \"discriminatory\" if it does not include within\r\nthe scope of its coverage, prohibits the exercise of, or is\r\nconditioned on the non-exercise of one or more of the rights that are\r\nspecifically granted under this License. You may not convey a covered\r\nwork if you are a party to an arrangement with a third party that is\r\nin the business of distributing software, under which you make payment\r\nto the third party based on the extent of your activity of conveying\r\nthe work, and under which the third party grants, to any of the\r\nparties who would receive the covered work from you, a discriminatory\r\npatent license (a) in connection with copies of the covered work\r\nconveyed by you (or copies made from those copies), or (b) primarily\r\nfor and in connection with specific products or compilations that\r\ncontain the covered work, unless you entered into that arrangement,\r\nor that patent license was granted, prior to 28 March 2007.\r\n\r\n Nothing in this License shall be construed as excluding or limiting\r\nany implied license or other defenses to infringement that may\r\notherwise be available to you under applicable patent law.\r\n\r\n 12. No Surrender of Others' Freedom.\r\n\r\n If conditions are imposed on you (whether by court order, agreement or\r\notherwise) that contradict the conditions of this License, they do not\r\nexcuse you from the conditions of this License. If you cannot convey a\r\ncovered work so as to satisfy simultaneously your obligations under this\r\nLicense and any other pertinent obligations, then as a consequence you may\r\nnot convey it at all. For example, if you agree to terms that obligate you\r\nto collect a royalty for further conveying from those to whom you convey\r\nthe Program, the only way you could satisfy both those terms and this\r\nLicense would be to refrain entirely from conveying the Program.\r\n\r\n 13. Use with the GNU Affero General Public License.\r\n\r\n Notwithstanding any other provision of this License, you have\r\npermission to link or combine any covered work with a work licensed\r\nunder version 3 of the GNU Affero General Public License into a single\r\ncombined work, and to convey the resulting work. The terms of this\r\nLicense will continue to apply to the part which is the covered work,\r\nbut the special requirements of the GNU Affero General Public License,\r\nsection 13, concerning interaction through a network will apply to the\r\ncombination as such.\r\n\r\n 14. Revised Versions of this License.\r\n\r\n The Free Software Foundation may publish revised and/or new versions of\r\nthe GNU General Public License from time to time. Such new versions will\r\nbe similar in spirit to the present version, but may differ in detail to\r\naddress new problems or concerns.\r\n\r\n Each version is given a distinguishing version number. If the\r\nProgram specifies that a certain numbered version of the GNU General\r\nPublic License \"or any later version\" applies to it, you have the\r\noption of following the terms and conditions either of that numbered\r\nversion or of any later version published by the Free Software\r\nFoundation. If the Program does not specify a version number of the\r\nGNU General Public License, you may choose any version ever published\r\nby the Free Software Foundation.\r\n\r\n If the Program specifies that a proxy can decide which future\r\nversions of the GNU General Public License can be used, that proxy's\r\npublic statement of acceptance of a version permanently authorizes you\r\nto choose that version for the Program.\r\n\r\n Later license versions may give you additional or different\r\npermissions. However, no additional obligations are imposed on any\r\nauthor or copyright holder as a result of your choosing to follow a\r\nlater version.\r\n\r\n 15. Disclaimer of Warranty.\r\n\r\n THERE IS NO WARRANTY FOR THE PROGRAM, TO THE EXTENT PERMITTED BY\r\nAPPLICABLE LAW. EXCEPT WHEN OTHERWISE STATED IN WRITING THE COPYRIGHT\r\nHOLDERS AND/OR OTHER PARTIES PROVIDE THE PROGRAM \"AS IS\" WITHOUT WARRANTY\r\nOF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO,\r\nTHE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR\r\nPURPOSE. THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE PROGRAM\r\nIS WITH YOU. SHOULD THE PROGRAM PROVE DEFECTIVE, YOU ASSUME THE COST OF\r\nALL NECESSARY SERVICING, REPAIR OR CORRECTION.\r\n\r\n 16. Limitation of Liability.\r\n\r\n IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING\r\nWILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MODIFIES AND/OR CONVEYS\r\nTHE PROGRAM AS PERMITTED ABOVE, BE LIABLE TO YOU FOR DAMAGES, INCLUDING ANY\r\nGENERAL, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE\r\nUSE OR INABILITY TO USE THE PROGRAM (INCLUDING BUT NOT LIMITED TO LOSS OF\r\nDATA OR DATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY YOU OR THIRD\r\nPARTIES OR A FAILURE OF THE PROGRAM TO OPERATE WITH ANY OTHER PROGRAMS),\r\nEVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF\r\nSUCH DAMAGES.\r\n\r\n 17. Interpretation of Sections 15 and 16.\r\n\r\n If the disclaimer of warranty and limitation of liability provided\r\nabove cannot be given local legal effect according to their terms,\r\nreviewing courts shall apply local law that most closely approximates\r\nan absolute waiver of all civil liability in connection with the\r\nProgram, unless a warranty or assumption of liability accompanies a\r\ncopy of the Program in return for a fee.\r\n\r\n END OF TERMS AND CONDITIONS\r\n\r\n How to Apply These Terms to Your New Programs\r\n\r\n If you develop a new program, and you want it to be of the greatest\r\npossible use to the public, the best way to achieve this is to make it\r\nfree software which everyone can redistribute and change under these terms.\r\n\r\n To do so, attach the following notices to the program. It is safest\r\nto attach them to the start of each source file to most effectively\r\nstate the exclusion of warranty; and each file should have at least\r\nthe \"copyright\" line and a pointer to where the full notice is found.\r\n\r\n <one line to give the program's name and a brief idea of what it does.>\r\n Copyright (C) <year> <name of author>\r\n\r\n This program is free software: you can redistribute it and/or modify\r\n it under the terms of the GNU General Public License as published by\r\n the Free Software Foundation, either version 3 of the License, or\r\n (at your option) any later version.\r\n\r\n This program is distributed in the hope that it will be useful,\r\n but WITHOUT ANY WARRANTY; without even the implied warranty of\r\n MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the\r\n GNU General Public License for more details.\r\n\r\n You should have received a copy of the GNU General Public License\r\n along with this program. If not, see <https://www.gnu.org/licenses/>.\r\n\r\nAlso add information on how to contact you by electronic and paper mail.\r\n\r\n If the program does terminal interaction, make it output a short\r\nnotice like this when it starts in an interactive mode:\r\n\r\n <program> Copyright (C) <year> <name of author>\r\n This program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.\r\n This is free software, and you are welcome to redistribute it\r\n under certain conditions; type `show c' for details.\r\n\r\nThe hypothetical commands `show w' and `show c' should show the appropriate\r\nparts of the General Public License. Of course, your program's commands\r\nmight be different; for a GUI interface, you would use an \"about box\".\r\n\r\n You should also get your employer (if you work as a programmer) or school,\r\nif any, to sign a \"copyright disclaimer\" for the program, if necessary.\r\nFor more information on this, and how to apply and follow the GNU GPL, see\r\n<https://www.gnu.org/licenses/>.\r\n\r\n The GNU General Public License does not permit incorporating your program\r\ninto proprietary programs. If your program is a subroutine library, you\r\nmay consider it more useful to permit linking proprietary applications with\r\nthe library. If this is what you want to do, use the GNU Lesser General\r\nPublic License instead of this License. But first, please read\r\n<https://www.gnu.org/licenses/why-not-lgpl.html>."
+    },
+    "longdescription": "Adds MCRIT as a provider in Binary Ninja's Binary Similarity sessions (Ultimate 6.0+), next to BinDiff and WARP. Every edge A -> B is exported to an SMDA report from Binary Ninja's analysis, matched with MCRIT's MatcherVs, and rendered with diff annotations through Binary Ninja's own similarity UI: apply copies names, types and comments, and matched functions can carry their MCRIT corpus labels.\n\nWorks straight after install: by default MCRIT runs inside Binary Ninja, with no server, Docker or account. To match against a shared corpus, set the server URL to an MCRIT server or mcritweb under Settings > MCRIT Binary Similarity. Binaries on x86, x86_64, aarch64 and 32-bit ARM (ARM and Thumb-2, little-endian) are supported.\n\n### Changelog\n### Added\n\n- Support for 32-bit ARM binaries (ARM and Thumb-2, little-endian), with `smda` 5.0.2.\n- **Export Built-in Corpus...** and **Import Corpus into Built-in Server...** save the built-in server's samples to a file and load one, including exports from any MCRIT server. Sessions then find binaries already indexed and skip uploading them again.\n- The **Built-in corpus** setting names an export file to load whenever the built-in server starts.\n\n### Changed\n\n- Release archives hold only the plugin, its README, changelog, license and the headless example; tests, CI and screenshots stay in the repository.\n",
+    "minimumbinaryninjaversion": 10601,
+    "name": "MCRIT Similarity",
+    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/2bb0cf91-ba46-4c7c-9935-1a38c3ba1bc9/versions/4dda0e0b-9b4b-41a4-8632-7e7422d9bb7d/platforms/4129/download/",
+    "packageUrl": "https://extensions.binary.ninja/v1/extensions/2bb0cf91-ba46-4c7c-9935-1a38c3ba1bc9/versions/4dda0e0b-9b4b-41a4-8632-7e7422d9bb7d/platforms/4129/download/?notrack=1",
+    "path": "mcrit_binja_similarity",
+    "platforms": [
+      "Darwin",
+      "Linux",
+      "Windows"
+    ],
+    "pluginmetadataversion": 2,
+    "projectData": {
+      "stargazers_count": 0,
+      "updated_at": "2026-10-31 09:01:55+00:00"
+    },
+    "projectUrl": "https://github.com/r0ny123/mcrit-binja-similarity/",
+    "subdir": "",
+    "type": [
+      "helper"
+    ],
+    "version": "0.3.0",
+    "view_only": false,
+    "sha256": "144bldz2wddc1g5x0ccmii304g3b7vpj13wv3b7bmrbkkvi3pbpk"
+  },
+  {
+    "api": [
+      "python3"
+    ],
     "author": "Daniel Roethlisberger",
     "dependencies": "",
     "description": "Annotation of Apple libclosure blocks.",
@@ -1173,7 +1688,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 34,
+      "stargazers_count": 35,
       "updated_at": "2026-08-30 18:57:08+00:00"
     },
     "projectUrl": "https://github.com/droe/binja-blocks",
@@ -2048,7 +2563,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 1167,
+      "stargazers_count": 1172,
       "updated_at": "2026-05-20 11:23:43+00:00"
     },
     "projectUrl": "https://github.com/mrphrazer/reverser_ai",
@@ -2482,7 +2997,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 8,
+      "stargazers_count": 9,
       "updated_at": "2023-12-14 17:48:13+00:00"
     },
     "projectUrl": "https://github.com/PistonMiner/binaryninja-go-callconv",
@@ -2876,7 +3391,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 757,
+      "stargazers_count": 759,
       "updated_at": "2026-06-07 16:55:58+00:00"
     },
     "projectUrl": "https://github.com/binsync/binsync",
@@ -3193,7 +3708,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 77,
+      "stargazers_count": 78,
       "updated_at": "2024-04-17 01:32:21+00:00"
     },
     "projectUrl": "https://github.com/WhatTheFuzz/binaryninja-openai",
@@ -3469,7 +3984,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 549,
+      "stargazers_count": 548,
       "updated_at": "2023-11-22 01:32:39+00:00"
     },
     "projectUrl": "https://github.com/ex0dus-0x/fuzzable",
@@ -3626,7 +4141,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 11,
+      "stargazers_count": 12,
       "updated_at": "2022-05-28 05:46:21+00:00"
     },
     "projectUrl": "https://github.com/0bs3n/arch-blackfin",
@@ -3982,7 +4497,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 2405,
+      "stargazers_count": 2409,
       "updated_at": "2022-01-21 23:58:37+00:00"
     },
     "projectUrl": "https://github.com/bootleg/ret-sync",
@@ -4179,7 +4694,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 2608,
+      "stargazers_count": 2610,
       "updated_at": "2024-02-05 18:12:17+00:00"
     },
     "projectUrl": "https://github.com/gaasedelen/lighthouse",
@@ -4570,7 +5085,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 685,
+      "stargazers_count": 686,
       "updated_at": "2026-05-20 14:19:13+00:00"
     },
     "projectUrl": "https://github.com/mrphrazer/obfuscation_detection",
@@ -6198,7 +6713,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 24,
+      "stargazers_count": 23,
       "updated_at": "2020-11-17 13:32:00+00:00"
     },
     "projectUrl": "https://github.com/icecr4ck/bnGB",
@@ -6638,7 +7153,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 358,
+      "stargazers_count": 359,
       "updated_at": "2024-02-24 15:43:49+00:00"
     },
     "projectUrl": "https://github.com/borzacchiello/seninja",
@@ -6796,7 +7311,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 56,
+      "stargazers_count": 57,
       "updated_at": "2020-10-01 21:35:22+00:00"
     },
     "projectUrl": "https://github.com/BlackwingHQ/iBoot64Binja",
@@ -7032,7 +7547,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 51,
+      "stargazers_count": 52,
       "updated_at": "2025-05-11 07:32:17+00:00"
     },
     "projectUrl": "https://github.com/MCPPhalanx/binaryninja-mcp",
@@ -7350,7 +7865,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 696,
+      "stargazers_count": 704,
       "updated_at": "2026-09-25 08:58:21+00:00"
     },
     "projectUrl": "https://github.com/buzzer-re/Rikugan/",
@@ -7906,7 +8421,7 @@
     ],
     "pluginmetadataversion": 2,
     "projectData": {
-      "stargazers_count": 11,
+      "stargazers_count": 13,
       "updated_at": "2026-09-21 23:41:01+00:00"
     },
     "projectUrl": "https://github.com/akrutsinger/binja-codemode-mcp",
@@ -8158,443 +8673,5 @@
     "version": "1.0.0",
     "view_only": false,
     "sha256": "1pwg6qwipv4fs5h0jvazrc6x8xizrqm127a48ypf1m24zcc6zacl"
-  },
-  {
-    "api": [
-      "python3"
-    ],
-    "author": "Jason Tang",
-    "dependencies": "mcp==1.23.3\nanyio>=4.0.0\nhypercorn>=0.16.0\npydantic>=2.0.0\npydantic-settings>=2.0.0",
-    "description": "Comprehensive MCP server for Binary Ninja with dual transport support (SSE and STDIO)",
-    "installinstructions": {},
-    "is_paid": false,
-    "lastUpdated": 1788199591,
-    "license": {
-      "name": "MIT",
-      "text": "Copyright (c) 2025 Jason Tang\r\n\r\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\r\n\r\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\r\n\r\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
-    },
-    "longdescription": "# BinAssistMCP\n\n> Comprehensive Model Context Protocol (MCP) server for Binary Ninja with AI-powered reverse engineering capabilities\n\n## Summary\n\nBinAssistMCP is a powerful bridge between Binary Ninja and Large Language Models (LLMs) like Claude, providing comprehensive reverse engineering tools through the Model Context Protocol (MCP). It enables AI-assisted binary analysis by exposing Binary Ninja's advanced capabilities through Server-Sent Events (SSE) and Streamable HTTP transports.\n\n### Key Features\n\n- **MCP 2025-11-25 Compliant**: Full support for tool annotations, resources, and prompts\n- **Dual Transport Support**: SSE (Server-Sent Events) and Streamable HTTP transports\n- **45 Consolidated Tools**: Streamlined Binary Ninja API wrapper with unified tool design\n- **8 MCP Resources**: Browsable, cacheable binary metadata\n- **7 Guided Prompts**: Pre-built workflows for common reverse engineering tasks\n- **Multi-Binary Sessions**: Concurrent analysis of multiple binaries with intelligent context management\n- **Context-Rich Code Output**: Function signatures and Binary Ninja comments are embedded in code results\n- **Analysis-Safe Queries**: Code retrieval uses already-loaded IL and never forces global reanalysis\n- **Session-Independent Discovery**: Direct tool calls discover open Binary Ninja views without requiring a prior listing call\n- **Nonblocking Binary Opens**: Large binaries and `.bndb` databases open asynchronously with pollable operation status\n- **Thread-Safe**: RLock-based synchronization for concurrent access\n- **Auto-Integration**: Seamless Binary Ninja plugin with automatic startup capabilities\n\n### Use Cases\n\n- **AI-Assisted Reverse Engineering**: Leverage LLMs for intelligent code analysis and documentation\n- **Protocol Analysis**: Trace network data flows and reconstruct protocol structures\n- **Vulnerability Research**: Systematic security audits with guided workflows\n- **Automated Binary Analysis**: Script complex analysis workflows with natural language\n- **Code Understanding**: Generate comprehensive documentation and explanations\n\n---\n\n## Architecture\n\n```\nsrc/binassist_mcp/\n├── server.py # FastMCP server - SSE/Streamable HTTP transport, tool registration\n├── tools.py # Binary Ninja API wrapper - 45 MCP tools\n├── plugin.py # Binary Ninja plugin integration\n├── context.py # Thread-safe multi-binary session management\n├── config.py # Pydantic configuration with Binary Ninja settings\n├── prompts.py # 7 guided workflow prompts\n├── resources.py # 8 MCP resource definitions\n├── cache.py # Cache primitives (not currently connected to MCP tools)\n├── tasks.py # Task lifecycle support (tool dispatch is not yet implemented)\n├── logging.py # Binary Ninja logging integration\n└── utils.py # Utility functions\n\n__init__.py # Plugin entry point (root level)\n```\n\n---\n\n## Tools (45 Total)\n\nBinAssistMCP provides 45 tools organized into functional categories. Tools include MCP annotations (`readOnlyHint`, `idempotentHint`) to help clients make informed decisions.\n\n### Binary Management\n| Tool | Description |\n|------|-------------|\n| `list_binaries` | Synchronize with Binary Ninja and list all loaded binary files |\n| `get_binary_info` | Check analysis status and metadata |\n| `get_binary_status` | Poll a queued open by operation ID, path, or name and report analysis progress |\n| `open_binary` | Queue a nonblocking binary or `.bndb` open; raw binaries require a destination `bndb_path` |\n| `update_analysis_and_wait` | Force analysis update and wait for completion |\n| `export_program` | Export the patched binary or Binary Ninja database to disk |\n\nBy default, `open_binary` validates its paths, schedules the Binary Ninja open, and immediately returns an `operation_id` with `status=\"opening\"`. Poll `get_binary_status(operation_id)` until it reports `ready` or `failed`. When ready, its `name` field is the final context name to pass to analysis tools. Concurrent requests for the same path reuse the active operation. Set `wait_for_analysis=true` only when legacy blocking behavior is explicitly required.\n\n### Code Analysis (Consolidated)\n| Tool | Description |\n|------|-------------|\n| `get_code` | Read analysis-safe code with signatures and comments; supports `decompile`, `hlil`, `mlil`, `llil`, `disasm`, and `pseudo_c` |\n| `get_function_low_level_il` | Get Low-Level IL for a function |\n| `get_function_signature` | Generate the native masked byte signature for a function |\n| `analyze_function` | Comprehensive function analysis with control flow and complexity metrics |\n| `get_basic_blocks` | Get basic block information for control flow analysis |\n| `get_function_stack_layout` | Get stack frame layout with variable offsets |\n\n#### `get_code` behavior\n\n`get_code` is a read-only query. It does not clear `analysis_skipped`, request IL generation, or run global analysis. For `format=\"decompile\"`, it returns already-loaded HLIL when available, then falls back through MLIL and LLIL to instruction-aligned disassembly. Use `update_analysis_and_wait` explicitly when fresh analysis is desired.\n\nThe `code` string starts with the current function signature and includes function-level and instruction-level Binary Ninja comments. The response contains:\n\n- `function` and `address`: resolved function identity\n- `format`: requested format\n- `actual_format`: representation actually returned, or `null` when an explicitly requested IL is unavailable\n- `fallback_used`: whether `decompile` used a lower-level representation\n- `code`: rendered code, signature, and comments\n- `note`: present when a fallback explains why and what was returned\n\n### Cross-References (Consolidated)\n| Tool | Description |\n|------|-------------|\n| `xrefs` | Unified cross-references with `direction` set to `to`, `from`, or `both`; optionally includes call relationships |\n\n### Comments (Consolidated)\n| Tool | Description |\n|------|-------------|\n| `comments` | **Unified comment management** - actions: `get`, `set`, `list`, `remove`, `set_function` |\n\n### Variables (Consolidated)\n| Tool | Description |\n|------|-------------|\n| `variables` | **Unified variable management** - actions: `list`, `create`, `rename`, `set_type`; `rename` supports local/global via `scope` |\n\n### Types (Consolidated)\n| Tool | Description |\n|------|-------------|\n| `types` | **Unified type management** - actions: `create`, `create_enum`, `create_typedef`, `create_class`, `add_member`, `info`, `list` |\n| `get_classes` | List all classes and structures |\n\n### Function Discovery\n| Tool | Description |\n|------|-------------|\n| `get_functions` | List all functions with metadata |\n| `search_functions_by_name` | Find functions by name pattern |\n| `get_functions_advanced` | Advanced filtering by size, complexity, parameters |\n| `search_functions_advanced` | Multi-target search (name, comments, calls, variables) |\n| `get_function_statistics` | Comprehensive statistics for all functions |\n\n### Symbol Management\n| Tool | Description |\n|------|-------------|\n| `rename_symbol` | Rename functions and data variables |\n| `batch_rename` | Rename multiple symbols in one operation |\n| `get_namespaces` | List namespaces and symbol organization |\n\n### Binary Information\n| Tool | Description |\n|------|-------------|\n| `get_imports` | Import table grouped by module |\n| `get_exports` | Export table with symbol information |\n| `get_strings` | Paginated string extraction |\n| `search_strings` | Search strings by pattern |\n| `get_segments` | Memory segment layout |\n| `get_sections` | Binary section information |\n| `get_entry_points` | List all binary entry points |\n\n### Data Analysis\n| Tool | Description |\n|------|-------------|\n| `create_data_var` | Define data variables at addresses |\n| `get_data_vars` | List all defined data variables |\n| `get_data_at` | Read and analyze raw data |\n| `search_bytes` | Search for byte patterns in binary |\n\n### Patching\n| Tool | Description |\n|------|-------------|\n| `patch_bytes` | Patch raw bytes in the binary at an address |\n| `assemble_code` | Assemble instruction text at an address and optionally patch it |\n\n### Navigation & Bookmarks\n| Tool | Description |\n|------|-------------|\n| `get_current_address` | Get current cursor position with context |\n| `get_current_function` | Identify function at current address |\n| `bookmarks` | **Unified bookmark management** - actions: `list`, `set`, `remove` |\n\n### Task Management (Experimental)\n| Tool | Description |\n|------|-------------|\n| `start_task` | Create a placeholder background task record; `tool_name` dispatch is not implemented yet |\n| `get_task_status` | Check status of async operations |\n| `list_tasks` | List all pending/running tasks |\n| `cancel_task` | Cancel a running task |\n\nThese APIs currently exercise task lifecycle management only. They do not execute the named MCP tool in the background.\n\n---\n\n## MCP Resources (8 Total)\n\nResources provide browsable, cacheable data that clients can access without tool calls.\n\n| URI Pattern | Description |\n|-------------|-------------|\n| `binassist://{filename}/triage_summary` | Complete binary overview |\n| `binassist://{filename}/functions` | All functions with metadata |\n| `binassist://{filename}/imports` | Import table |\n| `binassist://{filename}/exports` | Export table |\n| `binassist://{filename}/strings` | String table |\n| `binja://{filename}/info` | Binary metadata (arch, platform, entry point) |\n| `binja://{filename}/segments` | Memory segments with permissions |\n| `binja://{filename}/sections` | Binary sections |\n\n---\n\n## MCP Prompts (7 Total)\n\nPre-built prompts guide LLMs through structured analysis workflows.\n\n| Prompt | Arguments | Description |\n|--------|-----------|-------------|\n| `analyze_function` | `function_name`, `filename` | Comprehensive function analysis workflow |\n| `identify_vulnerability` | `function_name`, `filename` | Security audit checklist (memory safety, input validation, crypto) |\n| `document_function` | `function_name`, `filename` | Generate Doxygen-style documentation |\n| `trace_data_flow` | `address`, `filename` | Track data dependencies and taint propagation |\n| `compare_functions` | `func1`, `func2`, `filename` | Diff two functions for similarity analysis |\n| `reverse_engineer_struct` | `address`, `filename` | Recover structure definitions from usage patterns |\n| `trace_network_data` | `filename` | Trace POSIX/Winsock send/recv for protocol analysis |\n\n### Example: Network Protocol Analysis\n\nThe `trace_network_data` prompt guides analysis of network communication:\n\n1. **Identify Network Functions**: Finds POSIX (`send`/`recv`/`sendto`/`recvfrom`) and Winsock (`WSASend`/`WSARecv`) calls\n2. **Trace Call Stacks**: Maps application handlers down to network I/O\n3. **Analyze Buffers**: Identifies protocol structures (headers, length fields, TLV encoding)\n4. **Reconstruct Protocols**: Generates C struct definitions for message formats\n5. **Security Assessment**: Checks for buffer overflows, integer issues, information disclosure\n\n---\n\n## Installation\n\n### Prerequisites\n\n- **Binary Ninja**: Version 5000 or higher\n- **Python**: 3.10+ (typically bundled with Binary Ninja and required by the pinned MCP SDK)\n- **Platform**: Windows, macOS, or Linux\n\nNOTE: Windows users should start with: [BinAssistMCP on Windows](binassistmcp-on-windows.md)\n\n### Option 1: Binary Ninja Plugin Manager (Recommended)\n\n1. Open Binary Ninja\n2. Navigate to **Tools** → **Manage Plugins**\n3. Search for \"BinAssistMCP\"\n4. Click **Install**\n5. Restart Binary Ninja\n\n### Option 2: Manual Installation\n\n```bash\n# Clone the repository\ngit clone https://github.com/symgraph/BinAssistMCP.git\ncd BinAssistMCP\n\n# Install dependencies\npip install -r requirements.txt\n```\n\nCopy to your Binary Ninja plugins directory:\n\n| Platform | Path |\n|----------|------|\n| Windows | `%APPDATA%\\Binary Ninja\\plugins\\` |\n| macOS | `~/Library/Application Support/Binary Ninja/plugins/` |\n| Linux | `~/.binaryninja/plugins/` |\n\n---\n\n## Configuration\n\n### Binary Ninja Settings\n\nOpen **Edit** → **Preferences** → **binassistmcp**:\n\n| Setting | Default | Description |\n|---------|---------|-------------|\n| `server.host` | `localhost` | Server bind address |\n| `server.port` | `8000` | Server port |\n| `server.transport` | `streamablehttp` | Transport: `streamablehttp` or `sse` |\n| `binary.max_binaries` | `10` | Maximum concurrent binaries |\n| `plugin.auto_startup` | `true` | Auto-start server on file load |\n\n### Environment Variables\n\n```bash\nexport BINASSISTMCP_SERVER__HOST=localhost\nexport BINASSISTMCP_SERVER__PORT=8000\nexport BINASSISTMCP_SERVER__TRANSPORT=streamablehttp\nexport BINASSISTMCP_BINARY__MAX_BINARIES=10\n```\n\n---\n\n## Usage\n\n### Starting the Server\n\n**Via Binary Ninja Menu:**\n1. **Tools** → **BinAssistMCP** → **Start Server**\n2. Check log panel for: `BinAssistMCP server started on http://localhost:8000`\n\n**Auto-Startup:**\nServer starts automatically when Binary Ninja loads a file (configurable).\n\n### Connecting MCP Clients\n\n**Streamable HTTP (Default):**\n```\nhttp://localhost:8000/mcp\n```\n\n**Server-Sent Events:**\n```\nhttp://localhost:8000/sse\n```\n\n### Claude Desktop Configuration\n\nAdd to your Claude Desktop MCP configuration (`claude_desktop_config.json`):\n\n```json\n{\n \"mcpServers\": {\n \"binassist\": {\n \"url\": \"http://localhost:8000/mcp\"\n }\n }\n}\n```\n\n---\n\n## Integration Examples\n\nMost binary-specific tools require the context name in `filename`. `list_binaries` returns these names, but it is not an initialization requirement: direct filename-based calls refresh the context from Binary Ninja automatically when necessary.\n\n### Basic Function Analysis\n```\nUser: \"Analyze the main function and explain what it does\"\n\nClaude uses:\n1. list_binaries() - obtain the context filename\n2. get_functions(filename='sample.bndb') - find main\n3. get_code(filename='sample.bndb', function_name_or_address='main', format='decompile')\n4. xrefs(filename='sample.bndb', address_or_name='main', direction='from')\n5. analyze_function(filename='sample.bndb', function_name_or_address='main')\n```\n\n### Vulnerability Research\n```\nUser: \"Find buffer overflow vulnerabilities in input handling functions\"\n\nClaude uses:\n1. search_functions_advanced(filename='sample.bndb', search_term='strcpy', search_in='calls')\n2. get_code(filename='sample.bndb', function_name_or_address='handler', format='decompile')\n3. variables(filename='sample.bndb', action='list', function_name_or_address='handler')\n4. comments(filename='sample.bndb', action='set', address='0x401000', text='Unchecked copy')\n```\n\n### Protocol Reverse Engineering\n```\nUser: \"Analyze the network protocol used by this binary\"\n\nClaude uses the trace_network_data prompt:\n1. Identifies send/recv call sites\n2. Traces data flow from handlers to network I/O\n3. Reconstructs message structures\n4. Checks for network vulnerabilities\n```\n\n---\n\n## Troubleshooting\n\n### Server Issues\n\n| Problem | Solution |\n|---------|----------|\n| Server won't start | Check port 8000 availability, verify dependencies |\n| Connection refused | Ensure server is running, check firewall settings |\n| A requested IL is unavailable | Run `update_analysis_and_wait`, then retry `get_code` |\n| Binary name is rejected | Call `list_binaries` and use the returned context name |\n\n### Performance\n\n- **Memory usage**: Reduce `max_binaries` setting\n- **Code retrieval**: `get_code` returns loaded analysis immediately and falls back rather than triggering analysis\n\n### Logs\n\nCheck Binary Ninja's Log panel for detailed error messages.\n\n---\n\n## Contributing\n\n1. Fork the repository\n2. Create a feature branch\n3. Follow existing code patterns (Pydantic models, type hints, docstrings)\n4. Test with multiple binary types\n5. Submit a pull request\n\n---\n\n## License\n\nThis project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.\n\n\n### Changelog\nBinAssistMCP 2.11.0 prevents large binaries and BNDB databases from blocking MCP requests during loading.\r\nHighlights:\r\n- Asynchronous binary and BNDB opening\r\n- New get_binary_status tool for polling progress\r\n- Operation tracking across MCP sessions\r\n- Duplicate-open suppression\r\n- Nonblocking headless loading\r\n- Legacy wait_for_analysis=true behavior preserved\r\n- Expanded regression coverage and updated documentation",
-    "minimumbinaryninjaversion": 5000,
-    "name": "BinAssistMCP",
-    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/29e66682-c37d-4821-a34a-d358fc2b1cd3/versions/bb4b29bb-eacb-4790-8094-d8dc8016f38b/platforms/3919/download/",
-    "packageUrl": "https://extensions.binary.ninja/v1/extensions/29e66682-c37d-4821-a34a-d358fc2b1cd3/versions/bb4b29bb-eacb-4790-8094-d8dc8016f38b/platforms/3919/download/?notrack=1",
-    "path": "jtang613_BinAssistMCP",
-    "platforms": [
-      "Darwin",
-      "Linux",
-      "Windows"
-    ],
-    "pluginmetadataversion": 2,
-    "projectData": {
-      "stargazers_count": 50,
-      "updated_at": "2026-08-31 18:06:31+00:00"
-    },
-    "projectUrl": "https://github.com/jtang613/BinAssistMCP",
-    "subdir": "",
-    "type": [
-      "binaryview",
-      "helper",
-      "ui"
-    ],
-    "version": "2.11.0",
-    "view_only": false,
-    "sha256": "13zlib8j5fdj8nwsjapp9qi671gf45mn0w5daipgvmk6b894i0k9"
-  },
-  {
-    "api": [
-      "python3"
-    ],
-    "author": "Benson Liu",
-    "dependencies": "mpmath\nsympy\ntyping_extensions\nz3-solver",
-    "description": "Automatically simplify mixed boolean-arithmetic (MBA) obfuscation expressions.",
-    "installinstructions": {},
-    "is_paid": false,
-    "lastUpdated": 1789262368,
-    "license": {
-      "name": "MIT",
-      "text": "Copyright (c) 2024 Benson Liu\r\n\r\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\r\n\r\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\r\n\r\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
-    },
-    "longdescription": "This script will automatically simplify mixed boolean-arithmetic (MBA) obfuscation expressions used for obfuscation.\n\n### Changelog\nMaintenance release. The headline change is that the plugin is now findable by its own name in the Binary Ninja plugin manager.\n\n## Fixed\n\n- **Searching for \"MBASED\" in the plugin manager returned nothing.** The plugin was registered correctly the whole time — it's in the Community Extensions manifest with all six platforms and a working download — but the search only matches name, description, and author, and \"MBASED\" appeared in none of them. It was reachable only by searching \"MBA\", \"boolean\", or \"Benson\". The registered name is now `MBASED: Mixed Boolean-Arithmetic (MBA) Deobfuscator`. (#50)\n- **The version string was stale.** `plugin.json` still read `0.0.1` at the `v1.0.0` tag, so the extension server listed 0.0.1 as the only available version. Since it sorts releases by that string, leaving it stale risked future releases not registering as new. (#50, #51)\n\n## Changed\n\n- **Formatting moved from `black` to `ruff`.** (#49, closes #47) Two things were causing confusing CI failures:\n - `black` was installed unpinned, so a new release could turn an untouched branch red on its own. CI now pins `ruff==0.16.7`.\n - `black --check *.py **/*.py` only reached the top level and one directory deep — anything nested further was never checked. It's now `ruff format --check --diff .`, which walks the tree and prints the diff it wants instead of only naming the file.\n - Contributors should now run `ruff format .`; see the Contributing section of the README.\n\n## Notes\n\nNo functional changes to the solver, parser, or passes. The only Python file touched was `experiments/experiment.py`, and that change is whitespace-only (verified by comparing parse trees).\n\n**Full Changelog**: https://github.com/bliutech/mbased/compare/v1.0.0...v1.1.0\n",
-    "minimumbinaryninjaversion": 0,
-    "name": "Mixed Boolean-Arithmetic (MBA) Deobfuscator",
-    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/ef19fb56-b97b-4e2d-8723-ad64aefe94ba/versions/387d3ef5-8082-4e66-9abf-6a6d8d9abe25/platforms/3967/download/",
-    "packageUrl": "https://extensions.binary.ninja/v1/extensions/ef19fb56-b97b-4e2d-8723-ad64aefe94ba/versions/387d3ef5-8082-4e66-9abf-6a6d8d9abe25/platforms/3967/download/?notrack=1",
-    "path": "bliutech_mbased",
-    "platforms": [
-      "Darwin",
-      "Linux",
-      "Windows"
-    ],
-    "pluginmetadataversion": 2,
-    "projectData": {
-      "stargazers_count": 44,
-      "updated_at": "2026-09-13 01:19:28+00:00"
-    },
-    "projectUrl": "https://github.com/bliutech/mbased",
-    "subdir": "",
-    "type": [
-      "helper"
-    ],
-    "version": "1.1.0",
-    "view_only": false,
-    "sha256": "0v3csa6bwl6p8n4ws28mlqf8g4y0jd75wnn97xr91j5s3hzfzi74"
-  },
-  {
-    "api": [
-      "python3"
-    ],
-    "author": "S1ckZer",
-    "dependencies": "",
-    "description": "Sidebar widget for IDA-style byte pattern signature scanning and generation.",
-    "installinstructions": {},
-    "is_paid": false,
-    "lastUpdated": 1774575479,
-    "license": {
-      "name": "MIT",
-      "text": "MIT License\r\n\r\nCopyright (c) 2026 S1ckZer\r\n\r\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \\\"Software\\\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\r\n\r\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\r\n\r\nTHE SOFTWARE IS PROVIDED \\\"AS IS\\\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
-    },
-    "longdescription": "A Binary Ninja sidebar plugin for scanning and generating byte pattern signatures.\r\n\r\nFeatures:\r\n- IDA-style byte pattern scanning with wildcard support (? and ??)\r\n- Sidebar UI with results table (Address, RVA, Section, Function, Instruction)\r\n- Signature generator with [marked] byte support for important offsets\r\n- Scan history (last 10 signatures)\r\n- All segments or executable-only scanning\r\n- Right-click context menu integration\r\n- Auto-strips non-hex junk from pasted signatures\n\n### Changelog\nInitial release",
-    "minimumbinaryninjaversion": 3164,
-    "name": "Sig Scanner - Binary Ninja",
-    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/88daf6ab-4216-4a48-808b-fec41dd578f8/versions/99e444cd-8238-44ad-a023-a76af629865c/platforms/3409/download/",
-    "packageUrl": "https://extensions.binary.ninja/v1/extensions/88daf6ab-4216-4a48-808b-fec41dd578f8/versions/99e444cd-8238-44ad-a023-a76af629865c/platforms/3409/download/?notrack=1",
-    "path": "S1ckZer_SigScanner",
-    "platforms": [
-      "Darwin",
-      "Linux",
-      "Windows"
-    ],
-    "pluginmetadataversion": 2,
-    "projectData": {
-      "stargazers_count": 3,
-      "updated_at": "2026-03-27 01:37:59+00:00"
-    },
-    "projectUrl": "https://github.com/S1ckZer/Sig-Scanner---Binary-Ninja",
-    "subdir": "",
-    "type": [
-      "ui"
-    ],
-    "version": "1.0.0",
-    "view_only": false,
-    "sha256": "19a13ahdfx539b7wy4zbw1k0mfl56nindk25myj7sdp5hkf04l2d"
-  },
-  {
-    "api": [
-      "python3"
-    ],
-    "author": "Jordan Wiens",
-    "dependencies": "",
-    "description": "Add custom actions to the context menu",
-    "installinstructions": {},
-    "is_paid": false,
-    "lastUpdated": 1779761971,
-    "license": {
-      "name": "MIT",
-      "text": "Copyright (c) 2026 Jordan Wiens\r\n\r\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\r\n\r\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\r\n\r\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
-    },
-    "longdescription": "# Custom Context\nAuthor: **Jordan Wiens**\n\n_Add arbitrary actions to the right-click context menu._\n\n## Description\n\nBinary Ninja registers a large number of UI actions — everything you can see and\nbind in the keybindings list. Most are reachable only via a hotkey or a top-level\nmenu. **Custom Context** lets you surface any of them directly in the right-click\ncontext menu so they're a click away wherever you're working.\n\nOpen **Plugins ▸ Custom Context ▸ Configure Context Menu…** to pick actions:\n\n- **Search** the full list of registered actions and **Add →** the ones you want.\n- **Reorder** your selections (Move Up / Move Down, or drag-and-drop) and\n **Remove** any you no longer need.\n- Choose where the block of custom actions sits in the menu with the\n **section position** control (0 = top, 255 = bottom).\n\nYour selections are saved to user settings and applied immediately — no restart\nneeded. Clicking **OK** refreshes the menus of all open views, and any view\nopened afterward picks up the configuration as well.\n\n### Notes\n\n- Works in the linear, graph, hex, types, and stack views (the views Binary Ninja\n exposes a context-menu hook for).\n- Actions appear only where they're valid. Binary Ninja builds context menus with\n inactive actions hidden, so each action's own `isValid` logic decides where it\n shows up (e.g. a function-only action won't clutter the hex view).\n- Action names that contain `\\` (such as `Patch\\Convert to NOP`) render as\n submenus, exactly as they appear elsewhere in the menus.\n- Actions that are already part of a view's native context menu are left\n untouched rather than duplicated.\n- In the configuration dialog, actions that are already in the right-click menu\n are shown **greyed out** in the available list. Hover for the reason — either\n the action is already in your selection on the right, or it's a native item in\n an open view's right-click menu. (Native detection looks at the currently open\n views; with no file open the dialog can't probe and disables nothing on that\n basis.) The plugin's sync would skip such duplicates anyway; the disable just\n surfaces that up front so you don't add an action expecting it to appear and\n then wonder why it doesn't.\n\n## How it works\n\nThe plugin registers a `UIContextNotification` and reconciles each view's\ncontext menu via three event-driven hooks (no polling / no `isValid` abuse):\n\n- `OnContextMenuCreated` — fires once when a view first builds its (persistent)\n context menu; adds the configured actions for that view.\n- `OnViewChange` — fires when you switch view type within a frame (e.g.\n linear ↔ graph), refreshing the now-current view in case it was previously\n cached with stale items.\n- On dialog save — walks the open tabs/frames and re-applies the change\n directly, so updates are immediate without a restart.\n\nThe sync is stateless and idempotent: the plugin recovers its own items from a\nmenu by querying the menu group, rather than tracking object identity (which\navoids the \"Internal C++ object already deleted\" GC trap when wrappers churn).\n\n## Minimum Version\n\n4000\n\n## License\n\nThis plugin is released under an [MIT license](./LICENSE).\n\n## Metadata Version\n\n2\n\n\n### Changelog\nUX and robustness improvements in the configure dialog.\n\n- **Multi-row block move.** Move Up / Move Down now move the whole selection as a block (preserving its internal order and refusing to collapse against the wall when any selected row is at the boundary), instead of only moving the current row.\n- **Already-in-menu actions are disabled** in the available list with an explanatory tooltip — either because they're already in your selection on the right, or because they're a native item in an open view's right-click menu (so the plugin would skip them to avoid a duplicate).\n- **Visible save failures.** If a settings write fails — either with an exception or by the core returning `False` (e.g. a schema/type mismatch) — the dialog now shows a `QMessageBox.critical` with the affected key and reason, keeps itself open, and skips `apply_to_open_views()` so a partial state isn't pushed to every live view.\n- **Low-noise diagnostic logging** on previously-silent menu/view API failures (`addAction`, `removeAction`, `getActions`, `getGroupForAction`, `setGroupOrdering`, the `UIContext`/`ViewFrame` enumeration, and the dialog's native probe). Logged at debug level — invisible at the default log level, available with `--log-level Debug` when chasing a UI-lifecycle issue.",
-    "minimumbinaryninjaversion": 4000,
-    "name": "Custom Context",
-    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/0d09e48c-36cb-4fc6-9e79-3bbdede06f77/versions/ad6efab9-fdc1-49e5-ac3b-2117afbf94a8/platforms/3541/download/",
-    "packageUrl": "https://extensions.binary.ninja/v1/extensions/0d09e48c-36cb-4fc6-9e79-3bbdede06f77/versions/ad6efab9-fdc1-49e5-ac3b-2117afbf94a8/platforms/3541/download/?notrack=1",
-    "path": "customcontext",
-    "platforms": [
-      "Darwin",
-      "Linux",
-      "Windows"
-    ],
-    "pluginmetadataversion": 2,
-    "projectData": {
-      "stargazers_count": 2,
-      "updated_at": "2026-05-26 02:19:31+00:00"
-    },
-    "projectUrl": "https://github.com/psifertex/custom_context/",
-    "subdir": "",
-    "type": [
-      "ui"
-    ],
-    "version": "1.0.3",
-    "view_only": false,
-    "sha256": "1bd8iknn02yjyz1hn9w31nr91j6g6gxqv20vyc1007nj5n0kgkrv"
-  },
-  {
-    "api": [
-      "python3"
-    ],
-    "author": "redthing1",
-    "dependencies": "",
-    "description": "Analyze things on the Moon",
-    "installinstructions": {},
-    "is_paid": false,
-    "lastUpdated": 1769680319,
-    "license": {
-      "name": "MIT",
-      "text": "Copyright (c) 2024-2025 redthing1\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
-    },
-    "longdescription": "# binja_moonanalyzer\r\n\r\nbinja: analyze things on the moon\r\n\r\n## overview\r\n\r\n- the idea of this project is to enable ai-assisted binary analysis in a chat-like fashion.\r\n- unlike many ai-assisted analysis tools, **moonanalyzer** is designed for chat rather than api calls. this tool is for conversational, stateful binary analysis in a way that's closer to the human workflow.\r\n- you, the user, are in the front seat, and can locate interesting code; when you find some, you can use the quick analyze tool to generate a contextualized prompt to send to the moon (your llm chat) for analysis.\r\n- the llm sends back a dsl script that can rename things and add comments based on its analysis of the decompilation.\r\n- it's designed in the way that you can keep adding to a stateful chat in a back-and-forth, gradually analyzing the binary.\r\n\r\n## features\r\n\r\n- smart analyze: send snippets of HLIL and disassembly and get back DSL that can rename and retype things\r\n- smart patch: send snippets of HLIL and disassembly along with an objective and get back a patch\r\n\r\n## guide\r\n\r\n- ensure python dependency `lark` (for parsing) is installed\r\n- go to settings, set scope to project/resource, and set project context under **MoonAnalyzer**\r\n- navigate to a function, and use Plugins > MoonAnalyzer and an analyze command\r\n- paste the prompt into a llm chat interface\r\n- use Plugins > MoonAnalyzer > Execute BN-DSL and run the llm output",
-    "minimumbinaryninjaversion": 3164,
-    "name": "Moon Analyzer",
-    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/95719044-7e04-44ba-937f-7b4bb7aa5412/versions/b0c53088-43c3-4f51-b685-36de052853db/platforms/3121/download/",
-    "packageUrl": "https://extensions.binary.ninja/v1/extensions/95719044-7e04-44ba-937f-7b4bb7aa5412/versions/b0c53088-43c3-4f51-b685-36de052853db/platforms/3121/download/?notrack=1",
-    "path": "redthing1_binja_moonanalyzer",
-    "platforms": [
-      "Darwin",
-      "Linux",
-      "Windows"
-    ],
-    "pluginmetadataversion": 2,
-    "projectData": {
-      "stargazers_count": 5,
-      "updated_at": "2026-01-29 09:51:59+00:00"
-    },
-    "projectUrl": "https://github.com/redthing1/binja_moonanalyzer",
-    "subdir": "",
-    "type": [
-      "binaryview",
-      "core",
-      "ui"
-    ],
-    "version": "0.4.0",
-    "view_only": false,
-    "sha256": "10kjhndcjidqb5bjmv525cd8l9yqplswy7yj5k8hya0xl9rib7sa"
-  },
-  {
-    "api": [
-      "python3"
-    ],
-    "author": "redthing1",
-    "dependencies": "",
-    "description": "Minidump Loader for Binary Ninja",
-    "installinstructions": {},
-    "is_paid": false,
-    "lastUpdated": 1746814092,
-    "license": {
-      "name": "MIT",
-      "text": "Copyright (c) 2024 redthing1\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
-    },
-    "longdescription": "# binja_minidump\r\n\r\n[minidump](https://learn.microsoft.com/en-us/windows/win32/debug/minidump-files) loader for binja\r\n\r\ni wanted to make a python alternative to this rust minidump loader [plugin](https://github.com/cxiao/minidump_bn).\r\n\r\nthis plugin is based on the [minidump](https://github.com/skelsec/minidump) python library, which is vendored into this repo for maintenance.",
-    "minimumbinaryninjaversion": 3164,
-    "name": "Minidump Loader",
-    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/18f1ceca-4f66-42a1-86d8-332788aed993/versions/af28a427-f658-47d9-b43f-eac72f0e9007/platforms/2400/download/",
-    "packageUrl": "https://extensions.binary.ninja/v1/extensions/18f1ceca-4f66-42a1-86d8-332788aed993/versions/af28a427-f658-47d9-b43f-eac72f0e9007/platforms/2400/download/?notrack=1",
-    "path": "redthing1_binja_minidump",
-    "platforms": [
-      "Darwin",
-      "Linux",
-      "Windows"
-    ],
-    "pluginmetadataversion": 2,
-    "projectData": {
-      "stargazers_count": 0,
-      "updated_at": "2025-05-09 18:08:12+00:00"
-    },
-    "projectUrl": "https://github.com/redthing1/binja_minidump",
-    "subdir": "",
-    "type": [
-      "binaryview",
-      "core",
-      "ui"
-    ],
-    "version": "0.0.1",
-    "view_only": false,
-    "sha256": "1rakbplm4k4lplcmx5446cd51zf96yxlhvhl2jv040si3jqqn3qf"
-  },
-  {
-    "api": [
-      "python3"
-    ],
-    "author": "Nicolae Binica",
-    "dependencies": "",
-    "description": "Xtensa Architecture Support and ESP8266 Image Loader",
-    "installinstructions": {},
-    "is_paid": false,
-    "lastUpdated": 1756581413,
-    "license": {
-      "name": "MIT",
-      "text": "Copyright 2025 Nicolae Binica\\n\\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \\\"Software\\\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\\n\\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\\n\\nTHE SOFTWARE IS PROVIDED \\\"AS IS\\\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\""
-    },
-    "longdescription": "# binja-xtensa: Architecture Plugin Support and ESP8266 Loader\n\nTensilica Xtensa Architecture Plugin Support and ESP8266 Firmware Loader for Binary Ninja.\n\n![screenshot of Binary Ninja showing setup and loop of a decompiled ESP8266\nArduino project](https://raw.githubusercontent.com/zackorndorff/binja-xtensa/0.5/screenshots/hero.png)\n\nThis is a fork of the original project created by @zackorndorff : https://github.com/zackorndorff/binja-xtensa\nThis work was done as a Master Semester project at EPFL, Lausanne, together \nwith the Cyber-Defence Campus, supervised by Daniel Hulliger.\n\nGoal of this project is to create a usable plugin with full functionality \nfor XTensa Architecture, implementing features left out by the original author.\n\nFor a quick overview of the Xtensa ISA, I recommend [Espressif's overview](https://dl.espressif.com/github_assets/espressif/xtensa-isa-doc/releases/download/latest/Xtensa.pdf).\n\n## Features\n\n* Disassembly of almost all Xtensa instructions, except for the MAC16 option instructions \n* Lifting for most Xtensa instructions, except for the MAC16 option instructions \n and a few instructions noted in [Lifted_instr_list](Lists/Lifted_instr_list).\n* Support for Xtensa ELF files so they will be automatically recognized\n* Loader for ESP8266 raw firmware dumps. This support is a little finicky to\n use, as there's multiple partitions in the firmware dumps. By default it uses\n the last one with a detected header; you can adjust this via Open With\n Options\n community-plugins.json generate-repo.sh generated.nix official-plugins.json plugin.nix python-plugin.nix At the moment it doesn't completely map the sections properly, but it's a\n start :)\n\n## What it doesn't do\n\n* Anything with the optional vector unit (MAC16)\n* Anything quickly. This is Python, and not particularly well optimized Python\n at that. If you're using this seriously, I recommend rewriting in C++\n* Find `main` in a raw binary for you\n\n## Installation\n\nInstall via the Binary Ninja plugin manager. Alternatively, clone this\nrepository into your Binary Ninja plugins directory. See the [official Binary\nNinja documentation](https://docs.binary.ninja/guide/plugins.html) for more\ndetails.\n\n# Plugin structure:\n community-plugins.json generate-repo.sh generated.nix official-plugins.json plugin.nix python-plugin.nix __init__.py: registers architecture, sets up reg names & control-flow instructions\n community-plugins.json generate-repo.sh generated.nix official-plugins.json plugin.nix python-plugin.nix binaryview.py: defines the ESP8266 Firmware for the loader\n community-plugins.json generate-repo.sh generated.nix official-plugins.json plugin.nix python-plugin.nix instruction.py: defines instruction formats, decoding rules\n community-plugins.json generate-repo.sh generated.nix official-plugins.json plugin.nix python-plugin.nix disassemble.py: uses format information to tokenize and print disassembled instructions\n community-plugins.json generate-repo.sh generated.nix official-plugins.json plugin.nix python-plugin.nix lifter.py: actual lifting logic to LLIL\n\n## Using the ESP8266 Firmware Loader\n\nThe default of picking the last usable partition works decent, but if you want\nmore control, use Open With Options and change `Loader > Which Firmware` to the\noption corresponding to the address you want to load.\n\nI attempt to load in symbols from the SDK's linker script so some of the\nROM-implemented functions are less mysterious. See\n[parse_rom_ld.py](binja_xtensa/parse_rom_ld.py) for the parsing code,\n[known_symbols.py](binja_xtensa/known_symbols.py) for the database it'll apply,\nand function `setup_esp8266_map` in\n[binaryview.py](binja_xtensa/binaryview.py#L17) for the code that applies it.\nThis should probably be a load time option... but it's not at the moment :/\n\n![screenshot of Binary Ninja's Open With Options showing the Loader Which\nFirmware option](https://raw.githubusercontent.com/zackorndorff/binja-xtensa/0.5/screenshots/open-with-options.png)\n\n\n## Evaluation\n\nTo check the amount of disassembled opcodes or unlifted instructions, you can use \nthe [evaluation.py](binja_xtensa/evaluation/evaluation.py) script. This loads all\nbinaries in a target folder, including contents of archive .a files, and runs the\nBinary Ninja analysis. The results are then stored in a target path provided to the\nscript. This helped with checking the progress during the implementation and understand\nwhich instructions should take priority when lifting. For visualizing the results,\nyou can use the plotter in [plotter.ipynb](binja_xtensa/evaluation/plotter.ipynb).\n\n## Testing\n\nThere are some simple tests in\n[test_instruction.py](binja_xtensa/test_instruction.py), which are mostly just\ntaking uniq'd output from objdump on some binaries I had laying around and\nmaking sure the output matches. They can be run with `python -m pytest` from the\nroot of the project.\n\n## Future Work\n\n* Improve lifters once additional Binary Ninja features are added:\n community-plugins.json generate-repo.sh generated.nix official-plugins.json plugin.nix python-plugin.nix Loop Option: function-level lifting necessary to lift loops that span multiple basic blocks. \n community-plugins.json generate-repo.sh generated.nix official-plugins.json plugin.nix python-plugin.nix Windowed Registers: Transparent copies would help higher level analysis\n* Cleanly implement LITBASE offset, using loading options\n community-plugins.json generate-repo.sh generated.nix official-plugins.json plugin.nix python-plugin.nix More information: Daniel Wegemer's [presentation](https://media.defcon.org/DEF%20CON%2031/DEF%20CON%2031%20presentations/Daniel%20Wegemer%20-%20Unlocking%20hidden%20powers%20in%20Xtensa%20based%20Qualcomm%20Wifi%20chips.pdf) at DEFCON31\n* Add MAC16 option lifters\n* Proper Flag usage when lifting instructions\n* Improve the raw firmware loader\n* Improve section classifications (e.g. currently .literal is seen as code instead of data)\n* Rewrite to be faster\n\n## License\n\nThis project copyright Nicolae Binica (@nicabi) and Zack Orndorff (@zackorndorff) and is available under the\nMIT license. See [LICENSE](LICENSE).\n\n\n### Changelog\nCompleted version of the original plugin written by Zack Orndorff",
-    "minimumbinaryninjaversion": 8001,
-    "name": "Xtensa Architecture Support and ESP8266 Loader",
-    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/a497c1b0-f852-4c2a-9fc8-d3b023e7c1bd/versions/970fd1e2-b8af-4476-8091-e059e36bf09d/platforms/2677/download/",
-    "packageUrl": "https://extensions.binary.ninja/v1/extensions/a497c1b0-f852-4c2a-9fc8-d3b023e7c1bd/versions/970fd1e2-b8af-4476-8091-e059e36bf09d/platforms/2677/download/?notrack=1",
-    "path": "nicabi_binja_xtensa2",
-    "platforms": [
-      "Darwin",
-      "Linux",
-      "Windows"
-    ],
-    "pluginmetadataversion": 2,
-    "projectData": {
-      "stargazers_count": 5,
-      "updated_at": "2025-08-30 19:16:53+00:00"
-    },
-    "projectUrl": "https://github.com/nicabi/binja-xtensa2",
-    "subdir": "",
-    "type": [
-      "architecture",
-      "binaryview"
-    ],
-    "version": "1.0",
-    "view_only": false,
-    "sha256": "1i0nd40n74a07mmnq6riiqlyddb1fq21p4glxrc56jy09rmwyarz"
-  },
-  {
-    "api": [
-      "python2",
-      "python3"
-    ],
-    "author": "Ahmet Bilal Can",
-    "dependencies": "",
-    "description": "RISC-V architecture plugin to load encrypted Riscy-Business binaries.",
-    "installinstructions": {},
-    "is_paid": false,
-    "lastUpdated": 1747845501,
-    "license": {
-      "name": "Apache-2.0",
-      "text": "Copyright 2025 Ahmet Bilal Can\n\nLicensed under the Apache License, Version 2.0 (the \"License\"); you may not use this file except in compliance with the License. You may obtain a copy of the License at\n\n\thttp://www.apache.org/licenses/LICENSE-2.0\n\nUnless required by applicable law or agreed to in writing, software distributed under the License is distributed on an \"AS IS\" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License."
-    },
-    "longdescription": "# bn-riscy-business\r\n\r\nAn architecture plug-in that allows binary ninja to load [Riscy-Business](https://github.com/thesecretclub/riscy-business/tree/master) payload binaries and see decrypted rv64i instructions.\r\n\r\nThis plugin is fork of [bn-riscv](https://github.com/uni-due-syssec/bn-riscv). \r\n\r\n\r\n## Installation\r\n\r\nFirst, you will need an installation of [capstone](https://github.com/aquynh/capstone) that supports RISC-V.\r\n\r\n```\r\npip install --user 'capstone'\r\n```\r\n\r\nThen drop this repository into your plugins directory manually. Note that you should use it from master if possible, releases are somewhat rare.",
-    "minimumbinaryninjaversion": 0,
-    "name": "bn-riscy-business",
-    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/0f239ef9-60b2-4882-9544-4949d3867616/versions/136fa5e4-9b86-43ba-8940-11368ea00a37/platforms/2407/download/",
-    "packageUrl": "https://extensions.binary.ninja/v1/extensions/0f239ef9-60b2-4882-9544-4949d3867616/versions/136fa5e4-9b86-43ba-8940-11368ea00a37/platforms/2407/download/?notrack=1",
-    "path": "eybisi_bnriscybusiness",
-    "platforms": [
-      "Darwin",
-      "Linux",
-      "Windows"
-    ],
-    "pluginmetadataversion": 2,
-    "projectData": {
-      "stargazers_count": 8,
-      "updated_at": "2025-05-21 16:38:21+00:00"
-    },
-    "projectUrl": "https://github.com/eybisi/bn-riscy-business",
-    "subdir": "",
-    "type": [
-      "architecture"
-    ],
-    "version": "0.1",
-    "view_only": false,
-    "sha256": "14srymzncjcdjjnxshwd1np0j4qg7qyhhc4hlnfvqxl3bm0nrhyg"
-  },
-  {
-    "api": [
-      "python3"
-    ],
-    "author": "pathtofile",
-    "dependencies": "",
-    "description": "Creates a deeplink to the current address and adds it to the clipboard",
-    "installinstructions": {},
-    "is_paid": false,
-    "lastUpdated": 1747572584,
-    "license": {
-      "name": "MIT",
-      "text": "Copyright 2025 pathtofile\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
-    },
-    "longdescription": "Binary Ninja plugin that creates a deeplink to the current address and adds it to the clipboard. Example deeplink:\r\n```\r\nbinaryninja:///path/to/binary.bndb?expr=0x40369e\r\n```\r\n\r\nThe link can then be saved into an external Wiki, notebook, etc. Binary Ninja automatically installs a link handler at install time, so you just need to 'open' the link in a browser or from the commandline\r\nand it will open the right database as the correct location.",
-    "minimumbinaryninjaversion": 7290,
-    "name": "Copy as Deeplink",
-    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/a6102c95-789d-4be3-b81a-ad5821925926/versions/99e8fa5e-a09d-4da6-beb5-2b2ead155ae5/platforms/2413/download/",
-    "packageUrl": "https://extensions.binary.ninja/v1/extensions/a6102c95-789d-4be3-b81a-ad5821925926/versions/99e8fa5e-a09d-4da6-beb5-2b2ead155ae5/platforms/2413/download/?notrack=1",
-    "path": "pathtofile_binja_plugin_copy_deeplink",
-    "platforms": [
-      "Darwin",
-      "Linux",
-      "Windows"
-    ],
-    "pluginmetadataversion": 2,
-    "projectData": {
-      "stargazers_count": 0,
-      "updated_at": "2025-05-18 12:49:44+00:00"
-    },
-    "projectUrl": "https://github.com/pathtofile/binja_plugin_copy_deeplink",
-    "subdir": "",
-    "type": [
-      "helper"
-    ],
-    "version": "1.0.0",
-    "view_only": false,
-    "sha256": "1lci97bp3v70fwq791bj90y3j1lf0slcgj436fa0l62rjchs3dwn"
-  },
-  {
-    "api": [
-      "C++"
-    ],
-    "author": "Accenture (Martin Petran)",
-    "dependencies": "",
-    "description": "Architecture plugin for Renesas RH850/V850 family of processors.",
-    "installinstructions": {},
-    "is_paid": false,
-    "lastUpdated": 1737546835,
-    "license": {
-      "name": "Apache-2.0",
-      "text": "Copyright 2024 Accenture\r\n\r\nLicensed under the Apache License, Version 2.0 (the \"License\"); you may not use this file except in compliance with the License. You may obtain a copy of the License at\r\n\r\n\thttp://www.apache.org/licenses/LICENSE-2.0\r\n\r\nUnless required by applicable law or agreed to in writing, software distributed under the License is distributed on an \"AS IS\" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License."
-    },
-    "longdescription": "This Binary Ninja plugin provides a native implementation for the Renesas RH850/V850 architecture. The main reason for writing this from scratch instead of using existing plugin is that any Architecture plugin written in Python is not usable for large binaries as the analysis takes ages. Therefore, this is a complete coverage of this architecture written purely in C/C++.",
-    "minimumbinaryninjaversion": 6135,
-    "name": "NEC850 Architecture",
-    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/e62e1aa9-020d-42b4-a6e8-f4ff89777d68/versions/7e65c727-d2dc-4acd-807c-9c1bc8542000/platforms/1273/download/",
-    "packageUrl": "https://extensions.binary.ninja/v1/extensions/e62e1aa9-020d-42b4-a6e8-f4ff89777d68/versions/7e65c727-d2dc-4acd-807c-9c1bc8542000/platforms/1273/download/?notrack=1",
-    "path": "Accenture_NEC850_Architecture",
-    "platforms": [
-      "Darwin",
-      "Linux",
-      "Windows"
-    ],
-    "pluginmetadataversion": 2,
-    "projectData": {
-      "stargazers_count": 6,
-      "updated_at": "2025-01-22 11:53:55+00:00"
-    },
-    "projectUrl": "https://github.com/Accenture/NEC850_Architecture",
-    "subdir": "",
-    "type": [
-      "architecture"
-    ],
-    "version": "1.0",
-    "view_only": true,
-    "sha256": ""
-  },
-  {
-    "api": [
-      "python3"
-    ],
-    "author": "Martyx00",
-    "dependencies": "tiktoken>=0.5.0",
-    "description": "LLM-assisted vulnerability research over Binary Ninja decompiler output.",
-    "installinstructions": {},
-    "is_paid": false,
-    "lastUpdated": 1781859520,
-    "license": {
-      "name": "Apache 2.0",
-      "text": "Copyright 2026 Martin Petran\r\n\r\nLicensed under the Apache License, Version 2.0 (the \"License\"); you may not use this file except in compliance with the License. You may obtain a copy of the License at\r\n\r\n\thttp://www.apache.org/licenses/LICENSE-2.0\r\n\r\nUnless required by applicable law or agreed to in writing, software distributed under the License is distributed on an \"AS IS\" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License."
-    },
-    "longdescription": "VulnFanatic-NG adds a sidebar panel that scans the current binary in up to three phases. Phase 1 finds calls to dangerous functions (strcpy, memcpy, system, ...) and builds a decompiler-centric context (call path, path constraints, the calling function body, arguments, the called function's declared prototype, and tainted-source hints) for each call site. Phase 2 (when symbols/variable names are available) locates security-sensitive code (authentication, cryptography, signing, ...). Phase 3 (opt-in and online-only) audits firmware for missing or weak hardware-attack hardening controls (fault-injection / side-channel mitigations). Each context is sent to an LLM together with a tailored prompt; only confirmed issues are reported. Findings are listed with clickable references that navigate the view to the vulnerable code, and can be triaged (Real Issue / False Positive) and exported as fine-tuning data. The LLM backend is fully configurable in Settings (OpenAI-compatible by default, plus Anthropic Claude, Google Gemini, and Azure OpenAI) and is typically a locally hosted model. An offline (no-LLM) programmatic Phase 1 mode is also available.\n\n### Changelog\nInitial release of the net generation of the plugin. Enjoy :)",
-    "minimumbinaryninjaversion": 4000,
-    "name": "VulnFanatic-NG",
-    "packageShortUrl": "https://extensions.binary.ninja/v1/extensions/d232b9d1-1c31-4ca9-a7be-8c55d17b16de/versions/1a2f56a9-b47d-4cbd-90fc-725690498f5b/platforms/3577/download/",
-    "packageUrl": "https://extensions.binary.ninja/v1/extensions/d232b9d1-1c31-4ca9-a7be-8c55d17b16de/versions/1a2f56a9-b47d-4cbd-90fc-725690498f5b/platforms/3577/download/?notrack=1",
-    "path": "vulnfanatic_ng",
-    "platforms": [
-      "Darwin",
-      "Linux",
-      "Windows"
-    ],
-    "pluginmetadataversion": 2,
-    "projectData": {
-      "stargazers_count": 18,
-      "updated_at": "2026-06-19 08:58:40+00:00"
-    },
-    "projectUrl": "https://github.com/Martyx00/VulnFanatic-NG",
-    "subdir": "",
-    "type": [
-      "ui",
-      "helper"
-    ],
-    "version": "1.0.0",
-    "view_only": false,
-    "sha256": "18v2cyzjclrwggzizlzg023nljffwc2lzl6d57k5p8py0mgqqgdc"
   }
 ]
