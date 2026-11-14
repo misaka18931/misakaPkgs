@@ -8,12 +8,12 @@
 
 buildPythonPackage rec {
   pname = "ida-settings";
-  version = "3.3.0";
+  version = "3.5.2";
   src = fetchFromGitHub {
     owner = "williballenthin";
     repo = "ida-settings";
     rev = "v${version}";
-    hash = "sha256-EVt0swvfaqONm9FaNf3IKOTcgl689vX9zfMPuya5qOY=";
+    hash = "sha256-GSBMUmkafioskIjGVP78Jl0lhCgY+Yg7bWVG6bjWn8k=";
   };
 
   postPatch = ''

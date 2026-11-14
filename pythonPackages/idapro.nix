@@ -6,11 +6,11 @@
 }:
 buildPythonPackage rec {
   pname = "idapro";
-  version = "0.0.7";
+  version = "0.0.12";
 
   src = fetchPypi {
     inherit pname version;
-    hash = "sha256-Cy4YSxnk2EBOpIsfF/ObIbBUkxMVlA7pcW74VZFEmI8=";
+    hash = "sha256-1vEdUSamuat/AWVzxnSjtapFzzhYn4s9GyhMHI/M1p8=";
   };
 
   pyproject = true;
