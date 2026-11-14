@@ -8,7 +8,7 @@ for path in packages/*; do
 
             case $package in
                 sing-boxr)
-                    version=branch=reF1nd-dev
+                    version=branch=reF1nd-stable
                     ;;
                 *)
                     version=
