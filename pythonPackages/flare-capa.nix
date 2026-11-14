@@ -25,12 +25,12 @@
 }:
 buildPythonPackage rec {
   pname = "flare-capa";
-  version = "9.3.1"; # replace with latest version
+  version = "10.0.0"; # replace with latest version
 
   src = fetchPypi {
     pname = "flare_capa";
     inherit version;
-    hash = "sha256-XTrWRF5QD5uvLq6odJi/r2dGOXtkmwJdvsbcSvi16tk=";
+    hash = "sha256-TUScXB15R18dT/UxLJ8wVV9cEkpupsXaXH7vtXezfaM=";
   };
 
   pyproject = true;
