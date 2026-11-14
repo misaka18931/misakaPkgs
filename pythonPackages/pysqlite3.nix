@@ -9,12 +9,12 @@
 }:
 buildPythonPackage rec {
   pname = "pysqlite3";
-  version = "0.6.0";
+  version = "testnewbuild-1";
   src = fetchFromGitHub {
     owner = "coleifer";
     repo = pname;
     tag = version;
-    hash = "sha256-OpUbzYNqe3xFHd11icAHfb0mAbjO8HFj6iQcEYPpcRY=";
+    hash = "sha256-GJ6Y9NjA3qdH1tR3+rV7g/fGHsQkeMDwzKNMHADlTBk=";
   };
 
   pyproject = true;

@@ -27,12 +27,12 @@
 
 buildPythonPackage rec {
   pname = "pylingual";
-  version = "0-unstable-2026-01-16";
+  version = "0.1.0-unstable-2026-10-27";
   src = fetchFromGitHub {
     owner = "syssec-utd";
     repo = pname;
-    rev = "fb400cd0e419f919754d1c799a11e50ca6c67706";
-    hash = "sha256-knvpcqYiqTZkgjaTyqaqzbLj4wbAwnupqlztCiYJ2ZQ=";
+    rev = "aca827dd2d2b7ec9ba7e648c818857a8b45daef6";
+    hash = "sha256-bC8cZ0nzhTiBFDVb/1JrlX3xkJeCqa393Q8NrWb8+g8=";
   };
 
   pyproject = true;
